@@ -1,4 +1,4 @@
-# 示例：在 SLURM 集群上运行
+# Concordia 示例：在 SLURM 集群上运行
 
 [English](example_slurm.en.md) | 中文（两个版本内容一致，修改时请同步）
 
@@ -29,14 +29,14 @@
 
 ```
 /shared/myname/
-├── annotation/              流程代码（git clone --recursive）
+├── concordia/               流程代码（git clone --recursive）
 ├── db/                      数据库（约 130 GB）
 ├── conda_envs/              conda 环境（约 12 GB）
 ├── braker4_sif/             BRAKER4 镜像（约 3.4 GB）
 └── moringa/                 一个物种一个分析目录（Snakemake 的工作目录）
     ├── config.yaml
     ├── rna_short.tsv  rna_long.tsv  homologs.tsv
-    ├── slurm_profile/config.yaml     从 annotation/profiles/slurm 复制后修改
+    ├── slurm_profile/config.yaml     从 concordia/profiles/slurm 复制后修改
     ├── run_annotation.sbatch         提交主进程的脚本
     ├── logs/                         主进程日志
     └── results/                      运行后生成
@@ -50,14 +50,14 @@ cd /shared/myname
 curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
 source $HOME/miniforge3/etc/profile.d/conda.sh
-conda create -y -n annotation -c conda-forge -c bioconda \
+conda create -y -n concordia -c conda-forge -c bioconda \
     python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib graphviz
 
 # 流程代码（连同 BRAKER4 子模块）
-git clone --recursive <仓库地址> annotation
+git clone --recursive <仓库地址> concordia
 
 # 数据库：逐个下载并校验，可重复运行（断点续传）；InterProScan 在流程第一次运行时自动建立索引
-bash annotation/scripts/download_databases.sh /shared/myname/db
+bash concordia/scripts/download_databases.sh /shared/myname/db
 ```
 
 确认计算节点上有 Apptainer：`srun -p compute apptainer --version`。集群用 module 管理软件时为 `module load apptainer`，
@@ -65,7 +65,7 @@ bash annotation/scripts/download_databases.sh /shared/myname/db
 
 ## 4. 配置文件 `moringa/config.yaml`
 
-从 `annotation/config/config.example.yaml`（英文注释版 `config.example.en.yaml`）复制后修改。与服务器有关的项：
+从 `concordia/config/config.example.yaml`（英文注释版 `config.example.en.yaml`）复制后修改。与服务器有关的项：
 
 ```yaml
 outdir: "results"                          # 相对于工作目录：/shared/myname/moringa/results
@@ -117,7 +117,7 @@ resources:
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
 
-复制 `annotation/profiles/slurm/config.yaml`（英文注释版 `config.en.yaml`）后修改以下几项：
+复制 `concordia/profiles/slurm/config.yaml`（英文注释版 `config.en.yaml`）后修改以下几项：
 
 ```yaml
 executor: slurm
@@ -141,9 +141,9 @@ restart-times: 1
 ## 6. 建环境与检查（登录节点，需要联网）
 
 ```bash
-source $HOME/miniforge3/etc/profile.d/conda.sh && conda activate annotation
+source $HOME/miniforge3/etc/profile.d/conda.sh && conda activate concordia
 cd /shared/myname/moringa
-SM="snakemake -s /shared/myname/annotation/workflow/Snakefile -d . --configfile config.yaml --profile slurm_profile"
+SM="snakemake -s /shared/myname/concordia/workflow/Snakefile -d . --configfile config.yaml --profile slurm_profile"
 
 $SM --conda-create-envs-only      # 建好 7 个环境（约 10–20 分钟）；之后计算节点不需要联网
 conda clean -y --tarballs         # 删除下载的压缩包（约 3 GB）
@@ -151,7 +151,7 @@ conda clean -y --tarballs         # 删除下载的压缩包（约 3 GB）
 # OMArk 第一次运行要联网下载 NCBI 分类库：在 omark 环境中预先下载（环境目录可用 $SM --list-conda-envs 查到）
 conda activate /shared/myname/conda_envs/<omark 环境目录>
 python -c "from ete3 import NCBITaxa; NCBITaxa()"
-conda activate annotation
+conda activate concordia
 
 $SM -n                            # dry-run：检查配置并列出全部任务
 ```
@@ -172,9 +172,9 @@ Snakemake 主进程只负责提交和跟踪作业，占用资源很少，但要�
 set -euo pipefail
 # module load apptainer          # 集群用 module 管理时加上
 source $HOME/miniforge3/etc/profile.d/conda.sh
-conda activate annotation
+conda activate concordia
 cd /shared/myname/moringa
-snakemake -s /shared/myname/annotation/workflow/Snakefile -d . \
+snakemake -s /shared/myname/concordia/workflow/Snakefile -d . \
           --configfile config.yaml --profile slurm_profile
 ```
 

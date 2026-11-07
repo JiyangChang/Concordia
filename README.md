@@ -1,8 +1,8 @@
-# 真核基因组结构与功能注释流程（Snakemake）
+# Concordia：真核基因组结构与功能注释流程（Snakemake）
 
 [English](README.en.md) | 中文
 
-输入目标基因组、RNA-seq（短读和/或 PacBio / ONT 长读）以及若干同源物种的基因组和注释，依次完成以下步骤，最后生成一份图文统计报告：
+Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证据整合成共识注释。输入目标基因组、RNA-seq（短读和/或 PacBio / ONT 长读）以及若干同源物种的基因组和注释，依次完成以下步骤，最后生成一份图文统计报告：
 - 组装质量评估
 - 重复序列注释与软屏蔽
 - RNA 比对
@@ -43,8 +43,8 @@
 
 ```bash
 # 1. 获取流程代码（BRAKER4 是 git 子模块，固定在 commit 6a5ee16，--recursive 一并获取）
-git clone --recursive <本流程仓库> annotation      # 已克隆但缺少 BRAKER4 时：git submodule update --init
-A=$PWD/annotation                                  # 流程代码目录，下面用到
+git clone --recursive <本流程仓库> concordia      # 已克隆但缺少 BRAKER4 时：git submodule update --init
+A=$PWD/concordia                                  # 流程代码目录，下面用到
 #   （可选）git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
 
 # 2. 新建分析目录，放配置和样本表

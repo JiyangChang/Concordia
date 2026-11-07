@@ -1,4 +1,4 @@
-# 基因组注释流程 配置示例（英文版：config/config.example.en.yaml，两者参数相同，修改时请同步）
+# Concordia 基因组注释流程 配置示例（英文版：config/config.example.en.yaml，两者参数相同，修改时请同步）
 outdir: "results"                # 其下生成 00_Data ... 07_Report
 species_prefix: "ABCD"           # 最终基因 ID 前缀
 genome: "data/genome.fa"

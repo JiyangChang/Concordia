@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Regenerate the workflow diagrams in docs/ from the current Snakemake rules.
 #   bash scripts/make_workflow_diagrams.sh            (run from the project directory)
-# Needs snakemake and graphviz (dot) on PATH, e.g. in the "annotation" environment:
-#   conda install -n annotation -c conda-forge graphviz
+# Needs snakemake and graphviz (dot) on PATH, e.g. in the "concordia" environment:
+#   conda install -n concordia -c conda-forge graphviz
 #
 # The rule graph is built from the mock configuration tests/config.test.yaml (short reads + PacBio/ONT long
 # reads, two homologous species, no external databases needed), with eviann.swissprot set as recommended.

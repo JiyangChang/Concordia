@@ -1,8 +1,8 @@
-# Eukaryotic genome structural and functional annotation workflow (Snakemake)
+# Concordia: eukaryotic genome structural and functional annotation workflow (Snakemake)
 
 English | [中文](README.md)
 
-Given a target genome, RNA-seq (short reads and/or PacBio / ONT long reads) and the genomes and annotations of
+Concordia (Latin for "agreement") combines RNA, ab initio and homology evidence into a consensus annotation. Given a target genome, RNA-seq (short reads and/or PacBio / ONT long reads) and the genomes and annotations of
 several homologous species, the workflow runs the following steps and ends with an illustrated statistics report:
 - assembly quality assessment
 - repeat annotation and soft-masking
@@ -48,8 +48,8 @@ code and one directory per species / analysis.
 
 ```bash
 # 1. Get the workflow code (BRAKER4 is a git submodule pinned to commit 6a5ee16; --recursive fetches it too)
-git clone --recursive <this workflow's repository> annotation      # already cloned without BRAKER4: git submodule update --init
-A=$PWD/annotation                                  # workflow code directory, used below
+git clone --recursive <this workflow's repository> concordia      # already cloned without BRAKER4: git submodule update --init
+A=$PWD/concordia                                  # workflow code directory, used below
 #   (optional) git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
 
 # 2. Create the analysis directory with the configuration and sample tables

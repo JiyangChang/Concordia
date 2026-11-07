@@ -1065,7 +1065,7 @@ def main():
                  f"<title>{html.escape(a.prefix)} 注释报告</title><style>{CSS}</style></head>"
                  f"<body><div class='layout'><nav class='side'>{nav}</nav>"
                  f"<main><h1 id='top'>{html.escape(a.prefix)} 基因组注释统计报告</h1>"
-                 f"<p class='muted'>由 annotation Snakemake 流程自动生成</p>{banner}{body}</main></div>"
+                 f"<p class='muted'>由 Concordia 基因组注释流程（Snakemake）自动生成</p>{banner}{body}</main></div>"
                  f"<script>{NAV_JS}</script></body></html>")
 
 

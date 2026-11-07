@@ -1,4 +1,4 @@
-# Eukaryotic genome structural + functional annotation workflow
+# Concordia: eukaryotic genome structural + functional annotation workflow
 # Documentation: README.md, docs/deployment_guide.md
 #
 #   cd <analysis dir>   (results are written to Snakemake's working directory, -d)

@@ -1,4 +1,4 @@
-# 部署与数据库准备指南
+# Concordia 部署与数据库准备指南
 
 [English](deployment_guide.en.md) | 中文（两个版本内容一致，修改时请同步）
 
@@ -48,7 +48,7 @@ apptainer --version
 
 ```bash
 # BRAKER4 是 git 子模块（external/BRAKER4），固定在已核实的 commit 6a5ee16，--recursive 会一并获取
-git clone --recursive <本流程仓库> annotation && cd annotation
+git clone --recursive <本流程仓库> concordia && cd annotation
 # 已经克隆但 external/BRAKER4 为空时，补拉子模块：
 git submodule update --init
 ```
@@ -62,15 +62,15 @@ git submodule update --init
 #   "Command 'conda info --json' returned non-zero exit status 127"
 export PATH=$HOME/miniforge3/bin:$PATH        # 或 conda init 后重新登录
 # 运行流程本身用的环境（Snakemake 版本与 BRAKER4 要求一致）
-mamba create -n annotation -c conda-forge -c bioconda \
+mamba create -n concordia -c conda-forge -c bioconda \
     python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib
-conda activate annotation
+conda activate concordia
 
 # 各步骤的软件环境由 Snakemake 按 workflow/envs/*.yaml 自动建立（版本已锁定）。
 # 环境建在 profiles/slurm/config.yaml 的 conda-prefix 目录（默认 ~/annotation_conda_envs，约 15–20 GB）；
 # 计算节点不能联网时，先在登录节点预先建好：
-cd my_species && snakemake -s /path/to/annotation/workflow/Snakefile -d . --configfile config.yaml \
-    --profile /path/to/annotation/profiles/slurm --conda-create-envs-only
+cd my_species && snakemake -s /path/to/concordia/workflow/Snakefile -d . --configfile config.yaml \
+    --profile /path/to/concordia/profiles/slurm --conda-create-envs-only
 ```
 
 `profiles/slurm/config.yaml` 中需要按集群修改的项：
@@ -147,7 +147,7 @@ bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可�
 
 ```bash
 mkdir my_species && cd my_species           # 分析目录：配置、样本表和结果都在这里，代码目录只被读取
-cp /path/to/annotation/config/config.example.yaml config.yaml
+cp /path/to/concordia/config/config.example.yaml config.yaml
 ```
 
 必填项：
@@ -168,8 +168,8 @@ cp /path/to/annotation/config/config.example.yaml config.yaml
 ## 7. 运行
 
 ```bash
-conda activate annotation
-cd my_species; A=/path/to/annotation
+conda activate concordia
+cd my_species; A=/path/to/concordia
 SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
 # 1) 检查
 $SM --profile $A/profiles/slurm -n

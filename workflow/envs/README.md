@@ -24,4 +24,4 @@
 - **qc**：BUSCO 6.1 依赖多（AUGUSTUS、MetaEuk 等），与 NanoPlot、OMArk 冲突。
 - **omark / function**：两者可以合并求解，但 eggNOG-mapper 的 diamond 会从 2.2.8 降到 2.1.10、pandas 也随之改变，收益（1–2 GB）不值得重新核对结果。
 
-BRAKER4 没有单独的环境：嵌套运行 BRAKER4 时直接使用启动流程的 Snakemake（`annotation` 环境：Snakemake 8.18.2 + snakemake-executor-plugin-slurm 2.6.0），BRAKER4 的工具都在它自带的容器中。
+BRAKER4 没有单独的环境：嵌套运行 BRAKER4 时直接使用启动流程的 Snakemake（`concordia` 环境：Snakemake 8.18.2 + snakemake-executor-plugin-slurm 2.6.0），BRAKER4 的工具都在它自带的容器中。

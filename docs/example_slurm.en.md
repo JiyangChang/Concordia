@@ -1,4 +1,4 @@
-# Example: running on a SLURM cluster
+# Concordia example: running on a SLURM cluster
 
 English | [中文](example_slurm.md) (both versions have the same content - keep them in sync when editing)
 
@@ -32,14 +32,14 @@ copy of the code. The directory from which `sbatch` is called only affects the r
 
 ```
 /shared/myname/
-├── annotation/              workflow code (git clone --recursive)
+├── concordia/               workflow code (git clone --recursive)
 ├── db/                      databases (about 130 GB)
 ├── conda_envs/              conda environments (about 12 GB)
 ├── braker4_sif/             BRAKER4 images (about 3.4 GB)
 └── moringa/                 one analysis directory per species (Snakemake's working directory)
     ├── config.yaml
     ├── rna_short.tsv  rna_long.tsv  homologs.tsv
-    ├── slurm_profile/config.yaml     copied from annotation/profiles/slurm and edited
+    ├── slurm_profile/config.yaml     copied from concordia/profiles/slurm and edited
     ├── run_annotation.sbatch         script that submits the main process
     ├── logs/                         main-process logs
     └── results/                      created by the run
@@ -53,14 +53,14 @@ cd /shared/myname
 curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
 source $HOME/miniforge3/etc/profile.d/conda.sh
-conda create -y -n annotation -c conda-forge -c bioconda \
+conda create -y -n concordia -c conda-forge -c bioconda \
     python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib graphviz
 
 # workflow code (with the BRAKER4 submodule)
-git clone --recursive <repository URL> annotation
+git clone --recursive <repository URL> concordia
 
 # databases: one at a time, verified, can be re-run (resumes); InterProScan indexes are built on the first workflow run
-bash annotation/scripts/download_databases.sh /shared/myname/db
+bash concordia/scripts/download_databases.sh /shared/myname/db
 ```
 
 Check that Apptainer is available on the compute nodes: `srun -p compute apptainer --version`. If the cluster uses
@@ -68,7 +68,7 @@ modules, it is `module load apptainer`; add that line to the script of step 7.
 
 ## 4. Configuration `moringa/config.yaml`
 
-Copy `annotation/config/config.example.en.yaml` (Chinese comments: `config.example.yaml`) and edit. Server-related settings:
+Copy `concordia/config/config.example.en.yaml` (Chinese comments: `config.example.yaml`) and edit. Server-related settings:
 
 ```yaml
 outdir: "results"                          # relative to the working directory: /shared/myname/moringa/results
@@ -120,7 +120,7 @@ resources:
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
 
-Copy `annotation/profiles/slurm/config.en.yaml` (Chinese comments: `config.yaml`) and change these settings:
+Copy `concordia/profiles/slurm/config.en.yaml` (Chinese comments: `config.yaml`) and change these settings:
 
 ```yaml
 executor: slurm
@@ -145,9 +145,9 @@ profile, so the profile in the analysis directory needs no `snakefile` change.
 ## 6. Build environments and check (login node, needs internet)
 
 ```bash
-source $HOME/miniforge3/etc/profile.d/conda.sh && conda activate annotation
+source $HOME/miniforge3/etc/profile.d/conda.sh && conda activate concordia
 cd /shared/myname/moringa
-SM="snakemake -s /shared/myname/annotation/workflow/Snakefile -d . --configfile config.yaml --profile slurm_profile"
+SM="snakemake -s /shared/myname/concordia/workflow/Snakefile -d . --configfile config.yaml --profile slurm_profile"
 
 $SM --conda-create-envs-only      # builds the 7 environments (about 10-20 min); compute nodes then need no internet
 conda clean -y --tarballs         # removes the downloaded archives (about 3 GB)
@@ -155,7 +155,7 @@ conda clean -y --tarballs         # removes the downloaded archives (about 3 GB)
 # OMArk downloads the NCBI taxonomy on its first run: fetch it in the omark environment (find it with $SM --list-conda-envs)
 conda activate /shared/myname/conda_envs/<omark environment directory>
 python -c "from ete3 import NCBITaxa; NCBITaxa()"
-conda activate annotation
+conda activate concordia
 
 $SM -n                            # dry-run: checks the configuration and lists all jobs
 ```
@@ -176,9 +176,9 @@ ends. Many clusters do not allow long processes on login nodes, so run it as a s
 set -euo pipefail
 # module load apptainer          # when the cluster uses modules
 source $HOME/miniforge3/etc/profile.d/conda.sh
-conda activate annotation
+conda activate concordia
 cd /shared/myname/moringa
-snakemake -s /shared/myname/annotation/workflow/Snakefile -d . \
+snakemake -s /shared/myname/concordia/workflow/Snakefile -d . \
           --configfile config.yaml --profile slurm_profile
 ```
 

@@ -1,4 +1,4 @@
-# Deployment and database preparation guide
+# Concordia deployment and database preparation guide
 
 English | [中文](deployment_guide.md) (both versions have the same content - keep them in sync when editing)
 
@@ -52,7 +52,7 @@ Notes:
 
 ```bash
 # BRAKER4 is a git submodule (external/BRAKER4) pinned to the verified commit 6a5ee16; --recursive fetches it too
-git clone --recursive <this workflow's repository> annotation && cd annotation
+git clone --recursive <this workflow's repository> concordia && cd annotation
 # already cloned but external/BRAKER4 is empty: fetch the submodule
 git submodule update --init
 ```
@@ -66,15 +66,15 @@ After updating the workflow code the submodule version may change too; run `git 
 #   "Command 'conda info --json' returned non-zero exit status 127"
 export PATH=$HOME/miniforge3/bin:$PATH        # or conda init and log in again
 # Environment that runs the workflow itself (Snakemake version as required by BRAKER4)
-mamba create -n annotation -c conda-forge -c bioconda \
+mamba create -n concordia -c conda-forge -c bioconda \
     python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib
-conda activate annotation
+conda activate concordia
 
 # The software environment of each step is built by Snakemake from workflow/envs/*.yaml (pinned versions).
 # Environments go to the conda-prefix directory of profiles/slurm/config.yaml (default ~/annotation_conda_envs,
 # about 15-20 GB); when compute nodes have no internet access, build them on the login node first:
-cd my_species && snakemake -s /path/to/annotation/workflow/Snakefile -d . --configfile config.yaml \
-    --profile /path/to/annotation/profiles/slurm --conda-create-envs-only
+cd my_species && snakemake -s /path/to/concordia/workflow/Snakefile -d . --configfile config.yaml \
+    --profile /path/to/concordia/profiles/slurm --conda-create-envs-only
 ```
 
 Settings in `profiles/slurm/config.yaml` to adapt to the cluster:
@@ -163,7 +163,7 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 
 ```bash
 mkdir my_species && cd my_species           # analysis directory: configuration, sample tables and results; the code directory is only read
-cp /path/to/annotation/config/config.example.en.yaml config.yaml
+cp /path/to/concordia/config/config.example.en.yaml config.yaml
 ```
 
 Required settings:
@@ -185,8 +185,8 @@ Example: `tests/config.test.yaml` in the repository (mock data, for dry-runs); f
 ## 7. Running
 
 ```bash
-conda activate annotation
-cd my_species; A=/path/to/annotation
+conda activate concordia
+cd my_species; A=/path/to/concordia
 SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
 # 1) check
 $SM --profile $A/profiles/slurm -n

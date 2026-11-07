@@ -1,4 +1,4 @@
-# Genome annotation workflow - example configuration (Chinese version: config/config.example.yaml;
+# Concordia genome annotation workflow - example configuration (Chinese version: config/config.example.yaml;
 # both files hold the same parameters - keep them in sync when editing)
 outdir: "results"                # 00_Data ... 07_Report are created under this directory
 species_prefix: "ABCD"           # prefix of the final gene IDs
