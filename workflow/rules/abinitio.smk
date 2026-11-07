@@ -54,6 +54,12 @@ rule braker4_inputs:
         """)
 
 
+# braker4.bind: comma-separated mount points, each "path" or "path:container path[:opts]"; host paths resolved like
+# every other path setting ('~', relative to the working directory)
+B4_BIND = [":".join([P.path(b.split(":")[0])] + b.split(":")[1:])
+           for b in (x.strip() for x in str(B4.get("bind") or "").split(",")) if b]
+
+
 def braker4_executor_args():
     if B4.get("executor", "local") != "slurm":
         return ""
@@ -73,10 +79,10 @@ rule braker4:
         workdir=B4_DIR,
         snakefile=os.path.join(B4_REPO, "Snakefile"),
         snakemake=SNAKEMAKE,
-        cache=os.path.abspath(B4.get("container_cache", ".singularity_cache")),
+        cache=P.path(B4.get("container_cache") or ".singularity_cache"),
         # 00_Data may hold symbolic links to the inputs: their directories must be visible in the containers;
         # so must the shared BUSCO dataset directory used by BRAKER4's compleasm
-        bind=",".join(dict.fromkeys([x for x in str(B4.get("bind", "")).split(",") if x] + [OUT] +
+        bind=",".join(dict.fromkeys(B4_BIND + [OUT] +
                                     [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f] +
                                     [os.path.realpath(COMPLEASM_DIR)])),
         executor=braker4_executor_args(),

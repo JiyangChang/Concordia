@@ -40,7 +40,8 @@ class ConfigError(ValueError):
 
 
 def _abs(path, base):
-    if path is None or path == "":
+    """Configured path -> absolute: '~' expanded, relative paths taken from `base` (the working directory)."""
+    if path is None or str(path).strip() in ("", "null", "None"):
         return None
     path = os.path.expanduser(str(path))
     return path if os.path.isabs(path) else os.path.normpath(os.path.join(base, path))
@@ -93,6 +94,10 @@ class Project:
         self.fcs_db = _abs(fcs.get("db"), base_dir)
         self.fcs_taxid = str(fcs.get("tax_id")) if fcs.get("tax_id") not in (None, "", "null") else None
         self.validate()
+
+    def path(self, value):
+        """Any other path setting of the configuration, resolved like the ones above (None when unset)."""
+        return _abs(value, self.base)
 
     # ---------- loading ----------
     def _load_short(self, path):

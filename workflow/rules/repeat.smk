@@ -5,10 +5,10 @@ _cds = REP.get("edta_cds")
 if isinstance(_cds, bool):
     raise ValueError("repeat.edta_cds is now a FILE PATH (CDS nucleotide FASTA for EDTA --cds) or null; "
                      f"got {_cds!r}. The homolog CDS are no longer used by default.")
-EDTA_CDS = os.path.abspath(os.path.expanduser(str(_cds))) if _cds not in (None, "", "null") else None
+EDTA_CDS = P.path(_cds)
 
 
-DFAM_DIR = REP.get("dfam_dir")
+DFAM_DIR = P.path(REP.get("dfam_dir"))
 
 
 rule repeat_famdb_setup:
@@ -20,7 +20,7 @@ rule repeat_famdb_setup:
         O("01_Repeat/famdb_setup.done"),
     params:
         script=script("01_Repeat", "00_famdb_setup"),
-        dfam=os.path.abspath(str(DFAM_DIR)) if DFAM_DIR else "",
+        dfam=DFAM_DIR or "",
     log:
         **logs("01_Repeat", "00_famdb_setup"),
     conda:

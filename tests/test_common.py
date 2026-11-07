@@ -138,3 +138,14 @@ def test_long_read_counts_column(tmp_path):
     p = make(tmp_path, rna={"short": write(tmp_path, "s.tsv", "sample\tr1\tr2\tstrandness\n"), "long": l})
     assert p.long_sample("iso")["counts"] == str(tmp_path / "iso.cluster_report.csv")
     assert p.long_sample("ont")["counts"] is None
+
+
+def test_path_settings_tilde_and_relative(tmp_path, monkeypatch):
+    from common import _abs
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    base = str(tmp_path / "analysis")
+    assert _abs("~/db/eggnog", base) == str(tmp_path / "home" / "db" / "eggnog")
+    assert _abs("db/dfam", base) == os.path.join(base, "db", "dfam")
+    assert _abs("/abs/x", base) == "/abs/x"
+    for unset in (None, "", "null"):
+        assert _abs(unset, base) is None

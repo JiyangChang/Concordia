@@ -20,7 +20,7 @@ rule func_split:
         """)
 
 
-IPS_DIR = os.path.abspath(str(FN.get("interproscan_dir", "")))
+IPS_DIR = P.path(FN.get("interproscan_dir")) or ""
 
 
 rule interproscan_setup:
@@ -63,7 +63,7 @@ rule interproscan:
         gff=temp(O("06_Function/interproscan/chunk_{chunk}.gff3")),
     params:
         script=script("06_Function", "02_interproscan.{chunk}"),
-        exe=os.path.join(str(FN.get("interproscan_dir", "")), "interproscan.sh"),
+        exe=os.path.join(IPS_DIR, "interproscan.sh"),
         appl=f"--appl {FN['interproscan_appl']}" if FN.get("interproscan_appl") else "",
         base=O("06_Function/interproscan/chunk_{chunk}"),
         tmp=O("06_Function/interproscan/tmp_{chunk}"),
@@ -116,7 +116,7 @@ rule eggnog:
     params:
         script=script("06_Function", "03_eggnog"),
         outdir=O("06_Function/eggnog"),
-        db=FN.get("eggnog_data_dir", ""),
+        db=P.path(FN.get("eggnog_data_dir")) or "",
         scope=FN.get("eggnog_tax_scope", "auto"),
     threads: res("eggnog")["threads"]
     resources:
@@ -170,7 +170,7 @@ rule kegg_pathway_names:
         O("06_Function/stats/kegg_pathway_names.tsv"),
     params:
         script=script("06_Function", "05a_kegg_pathway_names"),
-        src="" if KEGG_NAMES_CFG in (None, "", "download") else os.path.abspath(str(KEGG_NAMES_CFG)),
+        src="" if KEGG_NAMES_CFG in (None, "", "download") else P.path(KEGG_NAMES_CFG),
         download="yes" if KEGG_NAMES_CFG == "download" else "no",
     log:
         **logs("06_Function", "05a_kegg_pathway_names"),
@@ -201,7 +201,7 @@ rule function_stats:
     params:
         script=script("06_Function", "05_function_stats"),
         outdir=O("06_Function/stats"),
-        obo=f"--go-obo {os.path.abspath(FN['go_obo'])}" if FN.get("go_obo") else "",
+        obo=f"--go-obo {P.path(FN['go_obo'])}" if P.path(FN.get("go_obo")) else "",
         top=FN.get("report_top", 20),
     log:
         **logs("06_Function", "05_function_stats"),

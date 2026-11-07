@@ -140,7 +140,7 @@ rule eviann_reads:
 
 EV = config.get("eviann", {}) or {}
 _sp = EV.get("swissprot")
-EVIANN_SWISSPROT = os.path.abspath(os.path.expanduser(str(_sp))) if _sp not in (None, "", "null") else None
+EVIANN_SWISSPROT = P.path(_sp)
 
 
 rule eviann:
