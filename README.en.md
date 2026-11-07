@@ -145,3 +145,40 @@ The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 python -m pytest tests                                                     # unit tests
 snakemake -s workflow/Snakefile --configfile tests/config.test.yaml -n     # dry-run on mock data
 ```
+
+## License
+
+Concordia's code is released under the [MIT License](LICENSE) (Copyright (c) 2026 Jiyang Chang).
+
+### Third-party software and databases
+
+Concordia only calls the following software on the command line; it neither contains nor distributes their code.
+They are installed by conda or from their own containers / packages and are covered by their own licenses. Using the
+workflow means using them too; please cite them in publications. Pay particular attention to the items marked **⚠**
+for commercial use.
+
+| Software | License (from the bioconda package metadata) |
+|---|---|
+| BRAKER4 (submodule, `external/BRAKER4`) | MIT |
+| **⚠ GeneMark** (GeneMark-ETP / ES, inside the BRAKER4 containers) | free for academic use; **commercial use needs a separate license from the authors** |
+| AUGUSTUS, ProtHint, TSEBRA, compleasm and others (inside the BRAKER4 containers) | their own open-source licenses, see the BRAKER4 documentation |
+| EDTA 2.3.0, LTR_retriever, TIR-Learner, TEsorter | GPL-3.0 |
+| RepeatMasker 4.2.4, RepeatModeler 2.0.9 | Open Software License 2.1 |
+| EviAnn 2.0.7 | GPL-3.0 |
+| HISAT2 2.2.3 | GPL-3.0 |
+| minimap2, samtools, StringTie, miniprot, gffread, seqkit, fastp, chopper, NanoPlot, tidk, BUSCO | MIT |
+| gffcompare | Artistic License 2.0 |
+| GeMoMa 1.9 | GPL-3.0 |
+| EVidenceModeler 2.1.0 | BSD-3-Clause |
+| AGAT 1.7.0 | GPL-3.0 |
+| OMArk, OMAmer | LGPL-3.0 |
+| **⚠ eggNOG-mapper 2.1.12** | AGPL-3.0 (extra source-sharing obligations when offered as a network service) |
+| diamond, MultiQC | GPL-3.0 |
+| InterProScan | Apache-2.0; some member databases / tools (e.g. SignalP, TMHMM, Phobius) need separate licenses and are not in the default distribution |
+| NCBI FCS-GX | public domain (NCBI) |
+| Snakemake | MIT |
+
+Databases: UniProt-SwissProt is CC BY 4.0, Dfam is CC0; **⚠ the KEGG REST API is for academic use only**
+(`function.kegg_pathway_names`); for OrthoDB, OMA, eggNOG, the BUSCO datasets, InterPro, GO and others follow the terms
+of use on their websites. The table reflects the versions installed in 2026-11 and is for information only; the
+official statements of each software / database take precedence.

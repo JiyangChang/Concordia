@@ -128,3 +128,37 @@ my_species/
 python -m pytest tests                                                     # 单元测试
 snakemake -s workflow/Snakefile --configfile tests/config.test.yaml -n     # 假数据 dry-run
 ```
+
+## 许可证
+
+Concordia 的代码以 [MIT 许可证](LICENSE) 发布（Copyright (c) 2026 Jiyang Chang）。
+
+### 第三方软件与数据库
+
+Concordia 只通过命令行调用下列软件，不包含、也不分发它们的代码；它们由 conda 或各自的容器 / 安装包安装，
+各自遵守自己的许可证。使用本流程即同时使用这些软件，发表结果时请一并引用。商业用途请特别注意标 **⚠** 的项。
+
+| 软件 | 许可证（据 bioconda 包信息） |
+|---|---|
+| BRAKER4（子模块，`external/BRAKER4`） | MIT |
+| **⚠ GeneMark**（GeneMark-ETP / ES，在 BRAKER4 容器内） | 学术免费；**商业用途需向作者另行取得许可** |
+| AUGUSTUS、ProtHint、TSEBRA、compleasm 等（BRAKER4 容器内） | 各自的开源许可证，见 BRAKER4 文档 |
+| EDTA 2.3.0、LTR_retriever、TIR-Learner、TEsorter | GPL-3.0 |
+| RepeatMasker 4.2.4、RepeatModeler 2.0.9 | Open Software License 2.1 |
+| EviAnn 2.0.7 | GPL-3.0 |
+| HISAT2 2.2.3 | GPL-3.0 |
+| minimap2、samtools、StringTie、miniprot、gffread、seqkit、fastp、chopper、NanoPlot、tidk、BUSCO | MIT |
+| gffcompare | Artistic License 2.0 |
+| GeMoMa 1.9 | GPL-3.0 |
+| EVidenceModeler 2.1.0 | BSD-3-Clause |
+| AGAT 1.7.0 | GPL-3.0 |
+| OMArk、OMAmer | LGPL-3.0 |
+| **⚠ eggNOG-mapper 2.1.12** | AGPL-3.0（以网络服务形式提供时有额外的开源义务） |
+| diamond、MultiQC | GPL-3.0 |
+| InterProScan | Apache-2.0；部分成员数据库 / 工具（如 SignalP、TMHMM、Phobius）需另行取得许可，默认发行版不含 |
+| NCBI FCS-GX | 公共领域（NCBI） |
+| Snakemake | MIT |
+
+数据库：UniProt-SwissProt 为 CC BY 4.0，Dfam 为 CC0；**⚠ KEGG REST 接口仅限学术用途**（`function.kegg_pathway_names`）；
+OrthoDB、OMA、eggNOG、BUSCO 数据集、InterPro、GO 等请遵守各自网站上的使用条款。
+上表根据 2026-11 安装的版本整理，仅供参考，以各软件 / 数据库的官方说明为准。
