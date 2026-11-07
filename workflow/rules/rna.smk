@@ -275,17 +275,22 @@ LR_WEIGHT = bool((config.get("refine", {}) or {}).get("lr_weight_by_coverage", T
 
 
 rule lr_sample_chains:
-    """Per-read intron chains of one long-read sample. Each read is weighted by the
-    full_length_coverage in its FASTA/FASTQ header (Iso-Seq HQ transcripts), else 1. Done per
-    sample because HQ transcript names (transcript/0, ...) repeat between Iso-Seq runs."""
+    """Per-read intron chains of one long-read sample. Each read is weighted by its number of
+    full-length reads: from the sample's Iso-Seq count table (rna_long.tsv column `counts`) if given,
+    else from full_length_coverage in its FASTA/FASTQ header (Iso-Seq HQ transcripts), else 1.
+    Done per sample because HQ transcript names (transcript/0, ...) repeat between Iso-Seq runs."""
     input:
         bam=O("02_RNA/align_long/{sample}.bam"),
         reads=lambda w: P.long_sample(w.sample)["reads"],
+        counts=lambda w: [P.long_sample(w.sample)["counts"]] if P.long_sample(w.sample)["counts"] else [],
     output:
-        O("02_RNA/introns/lr_chains/{sample}.tsv"),
+        chains=O("02_RNA/introns/lr_chains/{sample}.tsv"),
+        summary=O("02_RNA/introns/lr_chains/{sample}.weights.tsv"),
     params:
         script=script("02_RNA", "12_lr_chains.{sample}"),
-        weights=lambda w, input: f"--reads {input.reads}" if LR_WEIGHT else "",
+        weights=lambda w, input: ("" if not LR_WEIGHT else
+                                  f"--counts {input.counts}" if input.counts else f"--reads {input.reads}"),
+        platform=lambda w: P.long_sample(w.sample)["platform"],
     threads: 4
     log:
         **logs("02_RNA", "12_lr_chains.{sample}"),
@@ -293,25 +298,29 @@ rule lr_sample_chains:
         "../envs/core.yaml"
     shell:
         SH("""
-        samtools view -@ {threads} -F 0x904 {input.bam} | """ + PY("extract_introns.py") + """ chains {params.weights} --out {output}
-        echo "reads: $(($(wc -l < {output}) - 1))"
+        samtools view -@ {threads} -F 0x904 {input.bam} | """ + PY("extract_introns.py") + """ chains {params.weights} \\
+            --sample {wildcards.sample} --platform {params.platform} --summary {output.summary} --out {output.chains}
+        cat {output.summary}
         """, env="core")
 
 
 rule lr_read_chains:
     """Long-read intron chains of all samples (refine: whole-chain support, R3/R4)."""
     input:
-        [O(f"02_RNA/introns/lr_chains/{s}.tsv") for s in P.long_names],
+        chains=[O(f"02_RNA/introns/lr_chains/{s}.tsv") for s in P.long_names],
+        summaries=[O(f"02_RNA/introns/lr_chains/{s}.weights.tsv") for s in P.long_names],
     output:
-        O("02_RNA/introns/lr_read_chains.tsv"),
+        chains=O("02_RNA/introns/lr_read_chains.tsv"),
+        summary=O("02_RNA/qc/long_read_weights.tsv"),
     params:
         script=script("02_RNA", "12b_lr_read_chains"),
     log:
         **logs("02_RNA", "12b_lr_read_chains"),
     shell:
         SH("""
-        awk 'FNR > 1 || NR == 1' {input} > {output}
-        echo "reads: $(($(wc -l < {output}) - 1)); weighted reads: $(awk -F'\\t' 'NR > 1 && $5 != 1' {output} | wc -l)"
+        awk 'FNR > 1 || NR == 1' {input.chains} > {output.chains}
+        awk 'FNR > 1 || NR == 1' {input.summaries} > {output.summary}
+        cat {output.summary}
         """)
 
 

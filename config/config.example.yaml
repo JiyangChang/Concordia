@@ -159,6 +159,10 @@ refine:
   #   R2 补入 EviAnn 基因时也要求 CDS-TE 重叠不超过该值
   max_te_overlap: 0.5
   min_lr_support: 2              # R3/R4：模型内含子链被至少这么多条（全长）长读完全支持才算"有支持"
+                                 #   全长 reads 数的来源（按优先级）：rna_long.tsv 的 counts 列（isoseq cluster 的
+                                 #   cluster_report.csv / isoseq collapse 的 flnc_count.txt）> 表头 full_length_coverage > 按 1 计。
+                                 #   Iso-Seq HQ 转录本既无表头标签又无计数文件时，每条转录本只算 1，支持度会被低估：
+                                 #   此时可设为 1（任一条 HQ 转录本即算支持）；报告的"长读的全长 reads 权重"一节会给出提示
   lr_weight_by_coverage: true    # 长读按 FASTA/FASTQ 表头的 full_length_coverage 加权（Iso-Seq HQ/LQ 转录本是一簇全长
                                  #   reads 的一致序列）；无该字段的原始 reads（FLNC、ONT）按 1 计
                                  #   注意：HQ 转录本至少有 2 条全长 reads，此时 min_lr_support: 2 等于任一条 HQ 转录本即可

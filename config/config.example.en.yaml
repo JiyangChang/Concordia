@@ -180,6 +180,11 @@ refine:
   max_te_overlap: 0.5
   min_lr_support: 2              # R3/R4: an intron chain is "supported" when at least this many (full-length)
                                  #   long reads match it exactly
+                                 #   Full-length read counts come from (in order): the counts column of rna_long.tsv
+                                 #   (isoseq cluster's cluster_report.csv / isoseq collapse's flnc_count.txt) > the
+                                 #   full_length_coverage header tag > 1 per record. Iso-Seq HQ transcripts with neither
+                                 #   count as 1 each and support is underestimated: then set this to 1 (any HQ transcript
+                                 #   counts as support); the report section on long-read weights warns about it
   lr_weight_by_coverage: true    # weight long reads by full_length_coverage from the FASTA/FASTQ header (an Iso-Seq
                                  #   HQ/LQ transcript is the consensus of a cluster of full-length reads); raw reads
                                  #   without the field (FLNC, ONT) count 1.

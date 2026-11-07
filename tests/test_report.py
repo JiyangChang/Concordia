@@ -135,6 +135,15 @@ def build(out, with_optional=True):
     w(f"{out}/cfg.yaml", "outdir: x\n")
 
 
+def render_dir(tmp_path, out):
+    html_ = str(tmp_path / "r.html")
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
+                        "--braker4-mode", "dual", "--eviann-tag", "bam_mix", "--config", f"{out}/cfg.yaml",
+                        "--out", html_], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return open(html_).read()
+
+
 def render(tmp_path, **kw):
     out = str(tmp_path / "res")
     build(out, **kw)
@@ -296,3 +305,16 @@ def test_no_rna_banner_and_sections(tmp_path):
     for sec in ("rnaqc", "rnaalign", "eviann"):
         assert f"<section id='{sec}'>" not in h and f"href='#{sec}'" not in h
     assert "<section id='braker4'>" in h
+
+
+def test_long_read_weights_warning(tmp_path):
+    out = str(tmp_path / "res")
+    build(out)
+    os.makedirs(f"{out}/02_RNA/qc", exist_ok=True)
+    with open(f"{out}/02_RNA/qc/long_read_weights.tsv", "w") as fh:
+        fh.write("sample\tplatform\taligned_reads\tweighted_reads\tweighted_%\tfull_length_reads\tweight_source\n"
+                 "isoA\tpacbio_isoseq\t100\t0\t0.0\t100\tfull_length_coverage in read headers\n"
+                 "isoB\tpacbio_isoseq\t100\t100\t100.0\t900\tcount table c.csv\n")
+    h = render_dir(tmp_path, out)
+    assert "长读的全长 reads 权重" in h and "Iso-Seq 样本 isoA 没有任何一条记录带全长 reads 数" in h
+    assert "isoB 没有" not in h

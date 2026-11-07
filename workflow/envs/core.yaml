@@ -8,7 +8,6 @@ dependencies:
   # 输入整理、比对、组装、同源注释
   - seqkit=2.14.0
   - fastp=1.4.0
-  - chopper=0.15.0
   - hisat2=2.2.3
   - minimap2=2.31
   - samtools=1.24

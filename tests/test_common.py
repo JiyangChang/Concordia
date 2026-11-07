@@ -130,3 +130,11 @@ def test_evm_grid(tmp_path):
                                         "tune": {"grid": {"BRAKER4": [1, 2], "transcripts": [6]}}})
     assert [c[1] for c in p.evm_grid()] == [{"BRAKER4": 2, "SR_stringtie": 6}, {"BRAKER4": 1, "SR_stringtie": 6}]
     assert make(tmp_path, evm={"tune": {"enabled": False}}).evm_tune["enabled"] is False
+
+
+def test_long_read_counts_column(tmp_path):
+    l = write(tmp_path, "long_counts.tsv", "sample\treads\tplatform\tcounts\niso\tiso.fq\tpacbio_isoseq\tiso.cluster_report.csv\n"
+                                  "ont\tont.fq\tont_cdna\t\n")
+    p = make(tmp_path, rna={"short": write(tmp_path, "s.tsv", "sample\tr1\tr2\tstrandness\n"), "long": l})
+    assert p.long_sample("iso")["counts"] == str(tmp_path / "iso.cluster_report.csv")
+    assert p.long_sample("ont")["counts"] is None

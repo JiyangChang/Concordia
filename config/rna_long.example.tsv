@@ -1,3 +1,7 @@
-sample	reads	platform
-# iso1	data/rna/iso1.flnc.fq.gz	pacbio_isoseq
+sample	reads	platform	counts
+# counts (optional, Iso-Seq): count table with the full-length read count of every HQ transcript, used when the
+#   FASTA/FASTQ headers carry no full_length_coverage: isoseq cluster's cluster_report.csv or isoseq collapse's
+#   *.flnc_count.txt (or a two-column "id<TAB>count" file). Leave empty for raw reads (CCS/FLNC, ONT): each read counts 1.
+# iso1	data/rna/iso1.hq.fasta.gz	pacbio_isoseq
+# iso2	data/rna/iso2.hq.fastq.gz	pacbio_isoseq	data/rna/iso2.cluster_report.csv
 # ont1	data/rna/ont1.fq.gz	ont_cdna

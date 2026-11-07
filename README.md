@@ -103,7 +103,7 @@ my_species/
 
 **修正（`05_EVM/refine`，`workflow/scripts/refine.py`）**
 - 按 CDS 内含子链比较 EVM 和 EviAnn 模型。
-- 长读支持以"全长 reads"计：Iso-Seq HQ 转录本按表头的 `full_length_coverage` 加权，原始 reads 按 1 计（`refine.lr_weight_by_coverage`）。
+- 长读支持以"全长 reads"计：Iso-Seq HQ 转录本按 `rna_long.tsv` 的 `counts` 列（isoseq cluster 的 `cluster_report.csv` 或 isoseq collapse 的 `flnc_count.txt`）或表头的 `full_length_coverage` 加权，原始 reads（CCS/FLNC、ONT）按 1 计（`refine.lr_weight_by_coverage`）。长读可以是 FASTA 或 FASTQ。HQ 转录本既无计数文件又无表头标签时支持度会被低估，报告中会提示；此时可将 `refine.min_lr_support` 设为 1。
 - 规则：R1 引入 UTR 和异构体；R2 补入缺失基因；R3 冲突时用有长读支持的模型替换；R4 处理拆分和融合；R5 检查 EVM 独有基因的证据；R6 lncRNA 单独输出。
 - 每个位点的处理写入 `refine_decisions.tsv`。需要人工检查的位点会在报告中单独列出。
 
@@ -147,7 +147,7 @@ Concordia 只通过命令行调用下列软件，不包含、也不分发它们�
 | RepeatMasker 4.2.4、RepeatModeler 2.0.9 | Open Software License 2.1 |
 | EviAnn 2.0.7 | GPL-3.0 |
 | HISAT2 2.2.3 | GPL-3.0 |
-| minimap2、samtools、StringTie、miniprot、gffread、seqkit、fastp、chopper、NanoPlot、tidk、BUSCO | MIT |
+| minimap2、samtools、StringTie、miniprot、gffread、seqkit、fastp、NanoPlot、tidk、BUSCO | MIT |
 | gffcompare | Artistic License 2.0 |
 | GeMoMa 1.9 | GPL-3.0 |
 | EVidenceModeler 2.1.0 | BSD-3-Clause |

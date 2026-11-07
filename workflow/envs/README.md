@@ -7,7 +7,7 @@
 
 | 环境 | 用途 | 主要版本 |
 |---|---|---|
-| core | 输入整理、比对与组装、GeMoMa、miniprot、EVM、端粒 / 污染筛查、长读质控、报告 | HISAT2 2.2.3, minimap2 2.31, samtools 1.24, StringTie 3.0.3, GeMoMa 1.9, miniprot 0.18, gffread 0.12.9, gffcompare 0.12.10, fastp 1.4.0, chopper 0.15.0, seqkit 2.14.0, EVidenceModeler 2.1.0, tidk 0.3.1, NCBI FCS-GX 0.5.5, NanoPlot 1.46.2, matplotlib 3.10.9 |
+| core | 输入整理、比对与组装、GeMoMa、miniprot、EVM、端粒 / 污染筛查、长读质控、报告 | HISAT2 2.2.3, minimap2 2.31, samtools 1.24, StringTie 3.0.3, GeMoMa 1.9, miniprot 0.18, gffread 0.12.9, gffcompare 0.12.10, fastp 1.4.0, seqkit 2.14.0, EVidenceModeler 2.1.0, tidk 0.3.1, NCBI FCS-GX 0.5.5, NanoPlot 1.46.2, matplotlib 3.10.9 |
 | repeat | 重复序列、LAI、TEsorter | EDTA 2.3.0, TEsorter 1.5.1, pandas 2.3.3 |
 | eviann | RNA-based 注释 | EviAnn 2.0.7 |
 | agat | GFF 处理与统计 | AGAT 1.7.0, gffread 0.12.9 |

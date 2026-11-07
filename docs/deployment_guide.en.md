@@ -174,7 +174,7 @@ Required settings:
 | Setting | Description |
 |---|---|
 | `genome`, `species_prefix` | genome and gene ID prefix |
-| `rna.short` / `rna.long` | sample tables (long reads need `platform`: `pacbio_isoseq` / `pacbio_hifi` / `ont_cdna` / `ont_drna`) |
+| `rna.short` / `rna.long` | sample tables (long reads need `platform`: `pacbio_isoseq` / `pacbio_hifi` / `ont_cdna` / `ont_drna`; FASTA or FASTQ; for Iso-Seq HQ transcripts whose headers lack `full_length_coverage`, give the isoseq cluster / collapse count file in the optional `counts` column) |
 | `homologs` | genomes, GFF3 and proteins of the homologous species |
 | `orthodb_proteins` | OrthoDB partition proteins |
 | `qc.busco_lineages`, `qc.busco_download_path`, `qc.omark_db` | quality assessment |

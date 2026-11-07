@@ -334,3 +334,34 @@ def test_no_rna_mode_all_r5(tmp_path):
     dec = list(csv.DictReader(lines[1:], delimiter="\t"))
     assert {x["rule"] for x in dec} == {"R5"}
     assert {x["evm_genes"]: x["action"] for x in dec} == {"prot": "keep_evm", "bare": "keep_evm_flagged"}
+
+
+def test_extract_introns_weights_from_count_tables(tmp_path):
+    """FASTQ HQ transcripts without full_length_coverage: weights from an Iso-Seq count table."""
+    ex = os.path.join(ROOT, "workflow", "scripts", "extract_introns.py")
+    (tmp_path / "hq.fq").write_text("@transcript/0\nACGT\n+\nIIII\n@transcript/1\nACGT\n+\nIIII\n")   # no tags
+    sam = ("transcript/0\t0\tc1\t100\t60\t50M200N50M\t*\t0\t0\tA\t*\n"
+           "transcript/1\t0\tc1\t100\t60\t100M\t*\t0\t0\tA\t*\n"
+           "transcript/2\t0\tc1\t100\t60\t100M\t*\t0\t0\tA\t*\n")
+    tables = {
+        "cluster_report.csv": "cluster_id,read_id,read_type\ntranscript/0,m1/1/ccs,FL\ntranscript/0,m1/2/ccs,FL\n"
+                              "transcript/0,m1/3/ccs,FL\ntranscript/1,m1/4/ccs,FL\n",
+        "x.flnc_count.txt": "id,leaf,root\ntranscript/0,2,1\ntranscript/1,1,0\n",       # per-sample columns summed
+        "simple.tsv": "transcript/0\t3\ntranscript/1\t1\n",                               # no header
+    }
+    for name, text in tables.items():
+        (tmp_path / name).write_text(text)
+        out, summ = tmp_path / f"{name}.chains", tmp_path / f"{name}.summary"
+        r = subprocess.run([sys.executable, ex, "chains", "--reads", str(tmp_path / "hq.fq"),
+                            "--counts", str(tmp_path / name), "--sample", "iso1", "--platform", "pacbio_isoseq",
+                            "--summary", str(summ), "--out", str(out)], input=sam, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        assert [l.split("\t")[-1] for l in out.read_text().splitlines()[1:]] == ["3", "1", "1"], name
+        row = summ.read_text().splitlines()[1].split("\t")
+        assert row[:6] == ["iso1", "pacbio_isoseq", "3", "2", "66.7", "5"] and name in row[6], name
+    # headers without tags and no count table: everything weighs 1, summary shows 0 weighted reads
+    summ = tmp_path / "none.summary"
+    subprocess.run([sys.executable, ex, "chains", "--reads", str(tmp_path / "hq.fq"), "--sample", "iso1",
+                    "--platform", "pacbio_isoseq", "--summary", str(summ), "--out", str(tmp_path / "n.tsv")],
+                   input=sam, capture_output=True, text=True, check=True)
+    assert summ.read_text().splitlines()[1].split("\t")[3] == "0"

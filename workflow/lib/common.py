@@ -111,7 +111,9 @@ class Project:
             p = r.get("platform", "")
             if p not in LONG_PLATFORMS:
                 raise ConfigError(f"rna_long: sample {r.get('sample')} has platform '{p}', expected one of {LONG_PLATFORMS}")
-            rows.append({"sample": r["sample"], "reads": _abs(r["reads"], self.base), "platform": p})
+            rows.append({"sample": r["sample"], "reads": _abs(r["reads"], self.base), "platform": p,
+                         # optional: Iso-Seq count table giving each HQ transcript's full-length read count
+                         "counts": _abs(r.get("counts") or None, self.base)})
         return rows
 
     def _load_homologs(self, path):

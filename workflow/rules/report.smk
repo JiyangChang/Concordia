@@ -12,6 +12,7 @@ rule report:
         rules.repeat_stats.output,
         [O("02_RNA/qc/alignment_summary.tsv"), O("02_RNA/qc/merged_bam_summary.tsv"),
          O("02_RNA/EviAnn/stats/eviann_stats.tsv")] if HAS_RNA else [],
+        [O("02_RNA/qc/long_read_weights.tsv")] if P.has_long else [],
         O("03_Ab_initio/stats/braker4_stats.tsv"),
         O("03_Ab_initio/stats/braker4_support.tsv"),
         O("04_Homology/stats/gemoma_stats.tsv"),

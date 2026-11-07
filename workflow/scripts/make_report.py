@@ -383,6 +383,26 @@ def refine_rules_html(config_path):
             "表中数值为本次运行的配置（refine 段）。</p></details>")
 
 
+def long_read_weights_html(path):
+    """Full-length read weights of the long-read samples (refine / tuning support), with a warning when Iso-Seq
+    data carry no weights (HQ transcripts whose headers lost full_length_coverage, and no count table)."""
+    h, r = read_tsv(path)
+    if not h:
+        return ""
+    i_p, i_w = h.index("platform"), h.index("weighted_reads")
+    warn = [x[0] for x in r if x[i_p] == "pacbio_isoseq" and x[i_w] == "0"]
+    note = ""
+    if warn:
+        note = ("<div class='note'><b>注意：</b>Iso-Seq 样本 " + html.escape("、".join(warn)) + " 没有任何一条记录带全长 reads 数"
+                "（表头没有 full_length_coverage，样本表也没有 counts 列），每条记录按 1 计数。若这些记录是原始 reads（CCS / FLNC），"
+                "这是正确的；若是聚类后的 HQ 转录本，长读支持会被明显低估（修正 R3/R4 偏保守、调优 P 偏低）。"
+                "请在 rna_long.tsv 的 counts 列填写 isoseq cluster 的 cluster_report.csv 或 isoseq collapse 的 flnc_count.txt，"
+                "或将 refine.min_lr_support 设为 1。</div>")
+    return ("<h3>长读的全长 reads 权重</h3><p class='muted'>修正步骤（R3/R4）和权重调优按\"全长 reads\"计算长读支持："
+            "每条比对上的记录的权重取自样本表 counts 列的计数文件，或 FASTA/FASTQ 表头的 full_length_coverage，都没有时按 1 计。</p>" +
+            note + table(h, r))
+
+
 def tune_html(path, best, figdir):
     """EVM weight-tuning results: score table, F bar chart, the weights finally used."""
     if not os.path.exists(path):
@@ -742,7 +762,7 @@ def main():
               "（samtools stats，不含 secondary/supplementary）；unique/multi 来自 HISAT2 汇总；"
               "spliced % = 含内含子（CIGAR 中有 N）的主比对占比对上 reads 的比例；error rate 为错配碱基 / 比对碱基。</p>"
               "<h3>各样本</h3>" + fig + table(ah, ar) +
-              "<h3>合并 BAM 及其下游用途</h3>" + table(mh, mr)))
+              "<h3>合并 BAM 及其下游用途</h3>" + table(mh, mr) + long_read_weights_html(O("02_RNA/qc/long_read_weights.tsv"))))
     # 02-04: annotation sources (same layout for EviAnn, BRAKER4, GeMoMa)
     S.append(("eviann", "02_RNA EviAnn 注释", annotation_section(
         O, "eviann", O("02_RNA/EviAnn/stats/eviann_stats.tsv"), O("02_RNA/EviAnn/stats/eviann_distributions.tsv"),

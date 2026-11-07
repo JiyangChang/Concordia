@@ -112,8 +112,11 @@ The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 
 **Refinement (`05_EVM/refine`, `workflow/scripts/refine.py`)**
 - EVM and EviAnn models are compared by their CDS intron chains.
-- Long-read support counts "full-length reads": Iso-Seq HQ transcripts are weighted by `full_length_coverage` from
-  the header, raw reads count 1 (`refine.lr_weight_by_coverage`).
+- Long-read support counts "full-length reads": Iso-Seq HQ transcripts are weighted by the `counts` column of
+  `rna_long.tsv` (isoseq cluster's `cluster_report.csv` or isoseq collapse's `flnc_count.txt`) or by
+  `full_length_coverage` in the header; raw reads (CCS/FLNC, ONT) count 1 (`refine.lr_weight_by_coverage`). Long reads
+  may be FASTA or FASTQ. HQ transcripts with neither a count table nor the header tag are underestimated; the report
+  warns about it, and `refine.min_lr_support` can then be set to 1.
 - Rules: R1 imports UTRs and isoforms; R2 adds missing genes; R3 replaces a conflicting model with the one supported
   by long reads; R4 handles splits and fusions; R5 checks the evidence of EVM-only genes; R6 lncRNAs are output
   separately.
@@ -166,7 +169,7 @@ for commercial use.
 | RepeatMasker 4.2.4, RepeatModeler 2.0.9 | Open Software License 2.1 |
 | EviAnn 2.0.7 | GPL-3.0 |
 | HISAT2 2.2.3 | GPL-3.0 |
-| minimap2, samtools, StringTie, miniprot, gffread, seqkit, fastp, chopper, NanoPlot, tidk, BUSCO | MIT |
+| minimap2, samtools, StringTie, miniprot, gffread, seqkit, fastp, NanoPlot, tidk, BUSCO | MIT |
 | gffcompare | Artistic License 2.0 |
 | GeMoMa 1.9 | GPL-3.0 |
 | EVidenceModeler 2.1.0 | BSD-3-Clause |

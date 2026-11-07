@@ -155,7 +155,7 @@ cp /path/to/concordia/config/config.example.yaml config.yaml
 | 项 | 说明 |
 |---|---|
 | `genome`、`species_prefix` | 基因组和基因 ID 前缀 |
-| `rna.short` / `rna.long` | 样本表（长读须注明 `platform`：`pacbio_isoseq` / `pacbio_hifi` / `ont_cdna` / `ont_drna`） |
+| `rna.short` / `rna.long` | 样本表（长读须注明 `platform`：`pacbio_isoseq` / `pacbio_hifi` / `ont_cdna` / `ont_drna`；FASTA 或 FASTQ 均可；Iso-Seq HQ 转录本表头没有 `full_length_coverage` 时，在可选列 `counts` 填 isoseq cluster / collapse 的计数文件） |
 | `homologs` | 同源物种的基因组、GFF3、蛋白 |
 | `orthodb_proteins` | OrthoDB 分区蛋白 |
 | `qc.busco_lineages`、`qc.busco_download_path`、`qc.omark_db` | 质量评估 |
