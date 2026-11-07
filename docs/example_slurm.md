@@ -126,8 +126,8 @@ Copy `concordia/profiles/slurm/config.yaml` (Chinese comments: `config.zh.yaml`)
 executor: slurm
 jobs: 50                                   # maximum jobs queued / running at the same time; follow cluster rules
 default-resources:
-  slurm_partition: "compute"               # partition name
-  slurm_account: "my_project"              # when the cluster requires an accounting account; otherwise delete
+  slurm_partition: "'compute'"             # partition name; keep the inner single quotes (see below)
+  slurm_account: "'my_project'"            # when the cluster requires an accounting account; otherwise delete
   mem_mb: 8000
   runtime: 600
 software-deployment-method: [conda]
@@ -137,6 +137,11 @@ latency-wait: 120
 rerun-incomplete: true
 restart-times: 1
 ```
+
+**Quoting:** Snakemake evaluates every `default-resources` value as a Python expression. Text values such as
+partition and account names therefore need single quotes inside the double quotes (`"'compute'"`): a bare name
+that happens to be a Python built-in (`all`, `max`, `input` ...) would otherwise become a Python object, and every
+job fails at start-up (e.g. `TypeError: all() takes no keyword arguments`). A dry-run (`-n`) does not catch this.
 
 The resources requested by each step come from `resources` in `config.yaml`: `threads` → `--cpus-per-task`,
 `mem_mb` → `--mem`, `runtime` → `--time`. `-s` on the command line overrides the relative `snakefile` of the

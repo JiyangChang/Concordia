@@ -78,7 +78,7 @@ cd my_species && snakemake -s /path/to/concordia/workflow/Snakefile -d . --confi
 | 项 | 说明 |
 |---|---|
 | `conda-prefix` | conda 环境存放目录。必须在共享文件系统上、登录节点和计算节点路径相同；环境按 yaml 内容和该目录真实路径的哈希命名，可被多个项目复用（移动该目录会导致环境全部重建；需要换位置时可用软链接）。默认 `~/annotation_conda_envs`（家目录在多数集群上是共享的）；家目录空间不足（约需 15–20 GB）时改到共享存储下 |
-| `default-resources.slurm_partition` / `slurm_account` | 分区和记账账户 |
+| `default-resources.slurm_partition` / `slurm_account` | 分区和记账账户；文本值写两层引号，如 `"'all'"`（Snakemake 会把它当作 Python 表达式求值） |
 | `jobs` | 同时排队/运行的作业数上限 |
 
 profile 已开启 `software-deployment-method: [conda]`，命令行不必再加 `--sdm conda`。

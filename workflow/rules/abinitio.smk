@@ -70,7 +70,18 @@ def braker4_executor_args():
     if B4.get("executor", "local") != "slurm":
         return ""
     s = B4.get("slurm", {}) or {}
-    dr = " ".join(f"{k}={v}" for k, v in (s.get("default_resources") or {}).items())
+    # --default-resources values are evaluated as Python expressions: text (partition, account ...) is quoted so that
+    # names such as "all" stay text; numbers are passed as they are; already quoted values are kept
+    def item(k, v):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return f"{k}={v}"
+        v = str(v).strip()
+        if re.fullmatch(r"[0-9.eE+-]+", v):
+            return f"{k}={v}"
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+            v = v[1:-1]
+        return shlex.quote(f"{k}={v!r}")
+    dr = " ".join(item(k, v) for k, v in (s.get("default_resources") or {}).items())
     return f"--executor slurm --jobs {B4.get('max_jobs', 50)}" + (f" --default-resources {dr}" if dr else "")
 
 

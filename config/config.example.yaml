@@ -119,7 +119,8 @@ braker4:
   executor: local                # local | slurm: executor of the nested BRAKER4 run (slurm with the SLURM profile)
   max_jobs: 50                   # maximum concurrent SLURM jobs of the nested run
   slurm:
-    default_resources:           # passed to the nested BRAKER4 as --default-resources
+    default_resources:           # passed to the nested BRAKER4 as --default-resources (text values are quoted
+                                 #   automatically: plain names as here are fine, unlike in the SLURM profile)
       slurm_partition: all
   # Mode chosen from the data: short + PacBio = dual, short (+ONT) = ETP, PacBio only = IsoSeq,
   #   ONT only = EP, no RNA (rna.allow_none) = EP

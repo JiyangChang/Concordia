@@ -123,8 +123,8 @@ resources:
 executor: slurm
 jobs: 50                                   # 同时排队 / 运行的作业数上限，按集群规定调整
 default-resources:
-  slurm_partition: "compute"               # 分区名
-  slurm_account: "my_project"              # 集群要求记账账户时填写；否则删掉这一行
+  slurm_partition: "'compute'"             # 分区名；保留里面的单引号（见下文）
+  slurm_account: "'my_project'"            # 集群要求记账账户时填写；否则删掉这一行
   mem_mb: 8000
   runtime: 600
 software-deployment-method: [conda]
@@ -134,6 +134,10 @@ latency-wait: 120
 rerun-incomplete: true
 restart-times: 1
 ```
+
+**引号：** Snakemake 把 `default-resources` 的每个值当作 Python 表达式求值。分区名、账户名这类文本值要在双引号里
+再加单引号（`"'compute'"`）：否则恰好是 Python 内置名称的值（`all`、`max`、`input` 等）会变成 Python 对象，所有作业在
+启动时失败（例如 `TypeError: all() takes no keyword arguments`）。dry-run（`-n`）检查不出这个问题。
 
 各步骤作业申请的资源来自 `config.yaml` 的 `resources`：`threads` → `--cpus-per-task`，`mem_mb` → `--mem`，`runtime` → `--time`。
 命令行中的 `-s` 会覆盖 profile 里相对路径的 `snakefile`，所以分析目录中的 profile 不需要改 `snakefile`。

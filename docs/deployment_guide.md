@@ -82,7 +82,7 @@ Settings in `profiles/slurm/config.yaml` to adapt to the cluster:
 | Setting | Description |
 |---|---|
 | `conda-prefix` | Directory of the conda environments. Must be on a shared file system with the same path on the login node and the compute nodes. Environments are named by a hash of the yaml content and of the real path of this directory, so they can be reused by several projects (moving the directory rebuilds all environments; use a symbolic link to change the location). Default `~/annotation_conda_envs` (the home directory is shared on most clusters); if the home directory is too small (about 15–20 GB needed), use a directory on shared storage |
-| `default-resources.slurm_partition` / `slurm_account` | partition and accounting account |
+| `default-resources.slurm_partition` / `slurm_account` | partition and accounting account; text values in two layers of quotes, `"'all'"` (Snakemake evaluates them as Python expressions) |
 | `jobs` | maximum number of jobs queued / running at the same time |
 
 The profiles already enable `software-deployment-method: [conda]`; `--sdm conda` is not needed on the command line.

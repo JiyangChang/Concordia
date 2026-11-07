@@ -9,9 +9,11 @@ printshellcmds: true
 rerun-incomplete: true
 latency-wait: 120                 # seconds to wait for output files (shared file systems may lag)
 restart-times: 1
+# Text values need single quotes inside the double quotes ("'name'"): Snakemake evaluates every value here as a
+# Python expression, so a bare name such as all, max or input becomes a Python object and the jobs fail.
 default-resources:
-  slurm_partition: "all"          # change to a partition of your cluster
-  # slurm_account: "my_account"   # set when the cluster requires an accounting account
+  slurm_partition: "'all'"        # change to a partition of your cluster (keep both quotes)
+  # slurm_account: "'my_account'" # set when the cluster requires an accounting account
   mem_mb: 8000
   runtime: 600                    # minutes
 # threads / mem_mb / runtime of each step come from the resources section of config.yaml.

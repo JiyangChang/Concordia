@@ -8,6 +8,8 @@
 # to <step>/scripts/<NN>_<rule>[.<wildcard>].sh and then runs that script (see workflow/lib/shell_script.py).
 
 import os
+import re
+import shlex
 import sys
 
 from snakemake.utils import min_version

@@ -105,7 +105,8 @@ braker4:
   executor: local                # local | slurm：嵌套运行 BRAKER4 时使用的 executor（用 slurm profile 时改为 slurm）
   max_jobs: 50                   # 嵌套运行时 SLURM 的并发作业数上限
   slurm:
-    default_resources:           # 传给嵌套 BRAKER4 的 --default-resources
+    default_resources:           # 传给嵌套 BRAKER4 的 --default-resources（文本值由流程自动加引号：
+                                 #   这里直接写名称即可，与 SLURM profile 不同）
       slurm_partition: all
   # 模式自动决定: 短读+PacBio=dual, 短读(+ONT)=ETP, 仅PacBio=IsoSeq, 仅ONT=EP, 无 RNA（rna.allow_none）=EP
 

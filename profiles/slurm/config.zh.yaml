@@ -9,9 +9,11 @@ printshellcmds: true
 rerun-incomplete: true
 latency-wait: 120                 # 共享文件系统上输出文件可能延迟出现，等待秒数
 restart-times: 1
+# 文本值要在双引号里再加单引号（"'名称'"）：Snakemake 把这里的每个值当作 Python 表达式求值，不加单引号时
+# all、max、input 这类名称会变成 Python 对象，作业随即失败。
 default-resources:
-  slurm_partition: "all"          # 改成你所在集群的分区
-  # slurm_account: "my_account"   # 集群要求记账账户时填写
+  slurm_partition: "'all'"        # 改成你所在集群的分区（两层引号都保留）
+  # slurm_account: "'my_account'" # 集群要求记账账户时填写
   mem_mb: 8000
   runtime: 600                    # 分钟
 # 各步骤的 threads / mem_mb / runtime 来自 config.yaml 的 resources 段。
