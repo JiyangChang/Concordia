@@ -31,9 +31,10 @@ several homologous species, the workflow runs the following steps and ends with 
 | `07_Report` | `annotation_report.html`: tables and figures for every step | Python |
 
 **Workflow diagrams:**
-- `docs/workflow_main.png` / `.svg`: main workflow grouped by the 00–07 directories, without QC and statistics steps.
-- `docs/workflow_rulegraph.png` / `.svg`: all 90 steps.
-- Regenerate: `snakemake -s workflow/Snakefile --configfile tests/config.test.yaml --rulegraph | dot -Tsvg > rulegraph.svg` (needs graphviz).
+- `docs/workflow_main.png` / `.svg`: main workflow (with RNA-seq) grouped by the 00–07 directories, without QC and statistics steps; an arrow means "reads the output of", and every direct dependency is drawn.
+- `docs/workflow_main_norna.png` / `.svg`: main workflow in no-RNA mode (`rna.allow_none: true`).
+- `docs/workflow_rulegraph.png` / `.svg`: all steps (103 with the example configuration; QC and statistics steps in light grey).
+- Regenerate after changing rules: `bash scripts/make_workflow_diagrams.sh` (needs snakemake and graphviz; uses the example configuration `tests/config.test.yaml`, no databases needed).
 
 **The command of every step is first written to a script:** `<directory>/scripts/<number>_<rule>[.<wildcards>].sh`, which
 is then executed; logs go to `<directory>/logs/`, software versions to `<directory>/logs/versions/`. To debug a step,

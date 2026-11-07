@@ -29,9 +29,10 @@
 | `07_Report` | `annotation_report.html`：每一步都有统计表和图 | Python |
 
 **流程图：**
-- `docs/workflow_main.png` / `.svg`：主流程，按 00–07 目录分组，不含质控和统计步骤。
-- `docs/workflow_rulegraph.png` / `.svg`：全部 90 个步骤。
-- 重新生成：`snakemake -s workflow/Snakefile --configfile tests/config.test.yaml --rulegraph | dot -Tsvg > rulegraph.svg`（需要 graphviz）。
+- `docs/workflow_main.png` / `.svg`：主流程（有 RNA-seq），按 00–07 目录分组，不含质控和统计步骤；箭头表示"读取其输出"，所有直接依赖都画出。
+- `docs/workflow_main_norna.png` / `.svg`：无 RNA 模式（`rna.allow_none: true`）的主流程。
+- `docs/workflow_rulegraph.png` / `.svg`：全部步骤（示例配置下 103 个，质控和统计步骤为浅灰色）。
+- 修改规则后重新生成：`bash scripts/make_workflow_diagrams.sh`（需要 snakemake 和 graphviz；用 `tests/config.test.yaml` 示例配置，不需要数据库）。
 
 **每一步的命令都会先写成脚本：** `<目录>/scripts/<编号>_<rule>[.<通配符>].sh`，然后再执行；日志写入 `<目录>/logs/`，软件版本写入 `<目录>/logs/versions/`。排查问题时，激活脚本头部注明的环境，直接 `bash` 该脚本即可单独重跑这一步。
 
