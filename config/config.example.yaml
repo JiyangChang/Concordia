@@ -104,7 +104,13 @@ repeat:
 braker4:
   repo: "external/BRAKER4"      # relative paths are resolved against the project directory
   container_cache: ".singularity_cache"
-  bind: "/home,/scratch"
+  # Directories mounted into BRAKER4's Apptainer containers, comma-separated ("path" or "path:container path").
+  #   Containers see only $HOME, /tmp, the current directory and what the cluster's apptainer.conf adds; added
+  #   automatically: the results, the directories of genome / OrthoDB proteins, the BUSCO dataset directory, the
+  #   BRAKER4 code. List the top-level directories of shared storage holding data / databases that are not visible
+  #   by default (check: apptainer exec <image> ls /shared), e.g. "/shared" or "/shared,/data". "" = none needed.
+  #   Every path must exist: Apptainer refuses to start the container otherwise.
+  bind: "/path/to/shared_storage"
   min_contig: 10000              # BRAKER4 default; shorter contigs are not predicted
   use_minisplice: false          # only effective with IsoSeq data
   skip_busco: true               # BUSCO / OMArk are run by this workflow for all sources (only disables BRAKER4's own

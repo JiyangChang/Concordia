@@ -86,7 +86,7 @@ repeat:
 
 braker4:
   container_cache: "/shared/myname/braker4_sif"
-  bind: "/shared"                          # mount points the containers need (data, databases, results)
+  bind: "/shared"                          # shared storage not mounted by Apptainer by default (must exist)
   executor: local                          # recommended: BRAKER4 runs inside the one job allocated to it (section 9)
 
 eviann:

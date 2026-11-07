@@ -58,6 +58,12 @@ rule braker4_inputs:
 # every other path setting ('~', relative to the working directory)
 B4_BIND = [":".join([P.path(b.split(":")[0])] + b.split(":")[1:])
            for b in (x.strip() for x in str(B4.get("bind") or "").split(",")) if b]
+# Apptainer refuses to start a container when a mounted path does not exist: warn at start-up (dry-runs keep
+# working, e.g. while a disk is not mounted); the braker4 job checks again and stops with a clear message
+_b4_missing = [b.split(":")[0] for b in B4_BIND if not os.path.exists(b.split(":")[0])]
+if _b4_missing:
+    sys.stderr.write("WARNING: braker4.bind: path(s) do not exist: " + ", ".join(_b4_missing) +
+                     " - BRAKER4 will fail unless they exist when it runs (set existing directories or \"\")\n")
 
 
 def braker4_executor_args():
@@ -80,11 +86,12 @@ rule braker4:
         snakefile=os.path.join(B4_REPO, "Snakefile"),
         snakemake=SNAKEMAKE,
         cache=P.path(B4.get("container_cache") or ".singularity_cache"),
-        # 00_Data may hold symbolic links to the inputs: their directories must be visible in the containers;
-        # so must the shared BUSCO dataset directory used by BRAKER4's compleasm
+        # added automatically: the results; the directories of the inputs 00_Data links to; the BUSCO dataset
+        # directory of BRAKER4's compleasm; the BRAKER4 code (its scripts/ are run inside the containers)
         bind=",".join(dict.fromkeys(B4_BIND + [OUT] +
                                     [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f] +
-                                    [os.path.realpath(COMPLEASM_DIR)])),
+                                    [os.path.realpath(COMPLEASM_DIR), os.path.realpath(B4_REPO)])),
+        bind_user=" ".join(b.split(":")[0] for b in B4_BIND),
         executor=braker4_executor_args(),
     threads: res("braker4")["threads"]
     resources:
@@ -96,6 +103,9 @@ rule braker4:
         # The nested BRAKER4 run uses the Snakemake that runs this workflow (same version 8.18.2 and SLURM plugin);
         # its tools come from BRAKER4's own containers, so no conda environment is needed here.
         SH("""
+        for d in {params.bind_user}; do
+            [ -e "$d" ] || {{ echo "ERROR: braker4.bind: $d does not exist (Apptainer cannot mount it): list existing directories, or leave it empty" >&2; exit 1; }}
+        done
         export BRAKER4_CONFIG={input.ini}
         {params.snakemake} --snakefile {params.snakefile} --cores {threads} {params.executor} \\
                   --use-singularity --singularity-prefix {params.cache} --singularity-args "-B {params.bind}" \\

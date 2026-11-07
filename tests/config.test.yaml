@@ -41,7 +41,7 @@ repeat:
 braker4:
   repo: "external/BRAKER4"
   container_cache: ".singularity_cache"
-  bind: "/home,/scratch"
+  bind: ""
   min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
   use_minisplice: false          # 只在使用 IsoSeq 时生效
   skip_busco: true               # BUSCO/OMArk 统一由本流程评估

@@ -91,7 +91,12 @@ repeat:
 braker4:
   repo: "external/BRAKER4"      # 相对路径按项目目录解析
   container_cache: ".singularity_cache"
-  bind: "/home,/scratch"
+  # 挂载进 BRAKER4 的 Apptainer 容器的目录，逗号分隔（"路径" 或 "路径:容器内路径"）。
+  #   容器默认只能看到 $HOME、/tmp、当前目录和集群 apptainer.conf 中配置的目录；流程自动挂载：结果目录、基因组 /
+  #   OrthoDB 蛋白所在目录、BUSCO 数据集目录、BRAKER4 代码。这里填写存放数据 / 数据库、默认看不到的共享存储的顶层目录
+  #   （检查方法：apptainer exec <镜像> ls /shared），如 "/shared" 或 "/shared,/data"；"" = 不需要。
+  #   每个路径都必须存在，否则 Apptainer 无法启动容器。
+  bind: "/path/to/shared_storage"
   min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
   use_minisplice: false          # 只在使用 IsoSeq 时生效
   skip_busco: true               # BUSCO/OMArk 统一由本流程评估（只关闭 BRAKER4 自己的评估；它预测时用的 compleasm 照常运行，

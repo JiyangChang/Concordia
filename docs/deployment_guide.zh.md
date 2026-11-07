@@ -162,7 +162,7 @@ cp /path/to/concordia/config/config.example.zh.yaml config.yaml
 | `qc.busco_lineages`、`qc.busco_download_path`、`qc.omark_db` | 质量评估 |
 | `function.interproscan_dir`、`function.eggnog_data_dir` | 功能注释 |
 | `braker4.executor` | 在集群上设为 `slurm`，BRAKER4 的子任务也会提交到 SLURM |
-| `braker4.bind` | 容器需要访问的路径（数据库、结果目录所在的挂载点） |
+| `braker4.bind` | BRAKER4 容器需要、但 Apptainer 默认不挂载的目录（存放数据 / 数据库的共享存储；结果目录、输入所在目录、BUSCO 数据集和 BRAKER4 代码会自动挂载）；每个路径都必须存在 |
 
 示例：仓库中的 `tests/config.test.yaml`（模拟数据，用于 dry-run）；分析目录的组织方式见 README"快速开始"。
 

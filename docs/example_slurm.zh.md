@@ -83,7 +83,7 @@ repeat:
 
 braker4:
   container_cache: "/shared/myname/braker4_sif"
-  bind: "/shared"                          # 容器需要看到的挂载点（数据、数据库、结果所在位置）
+  bind: "/shared"                          # Apptainer 默认不挂载的共享存储（路径必须存在）
   executor: local                          # 推荐：BRAKER4 在分配给它的一个作业内运行（见第 9 节）
 
 eviann:

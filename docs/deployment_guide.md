@@ -181,7 +181,7 @@ Required settings:
 | `qc.busco_lineages`, `qc.busco_download_path`, `qc.omark_db` | quality assessment |
 | `function.interproscan_dir`, `function.eggnog_data_dir` | functional annotation |
 | `braker4.executor` | set to `slurm` on a cluster so that BRAKER4's sub-jobs are submitted to SLURM too |
-| `braker4.bind` | paths the containers need (mount points of the databases and the result directory) |
+| `braker4.bind` | directories the BRAKER4 containers need that Apptainer does not mount by default (shared storage with data / databases; results, input directories, BUSCO datasets and the BRAKER4 code are added automatically); every path must exist |
 
 Example: `tests/config.test.yaml` in the repository (mock data, for dry-runs); for organising analysis directories see
 "Quick start" in the README.
