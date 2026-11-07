@@ -44,13 +44,14 @@ for _src, _qcdir in QC_DIRS.items():
     rule:
         name: f"qc_busco_{_src}"
         input:
-            f"{_qc}/longest.pep.fa",
+            pep=f"{_qc}/longest.pep.fa",
+            ready=busco_ready(f"{_qc}/busco/{{lineage}}/short_summary.txt"),
         output:
             f"{_qc}/busco/{{lineage}}/short_summary.txt",
         params:
             script=script(_step, f"qc_02_busco.{_src}.{{lineage}}"),
             outpath=f"{_qc}/busco",
-            offline=busco_offline(),
+            offline=busco_offline,
         threads: res("busco")["threads"]
         resources:
             mem_mb=res("busco")["mem_mb"],
@@ -61,7 +62,7 @@ for _src, _qcdir in QC_DIRS.items():
             "../envs/qc.yaml"
         shell:
             SH("""
-            busco -i {input} -m protein -l {wildcards.lineage} -o {wildcards.lineage} \\
+            busco -i {input.pep} -m protein -l {wildcards.lineage} -o {wildcards.lineage} \\
                   --out_path {params.outpath} -c {threads} -f {params.offline}
             cp {params.outpath}/{wildcards.lineage}/short_summary.specific.*.txt {output}
             """, env="qc", versions="busco --version")

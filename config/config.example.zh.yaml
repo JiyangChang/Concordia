@@ -193,8 +193,11 @@ naming:
   lncrna_tag: L
 
 qc:
-  busco_lineages: []             # 必填，由用户指定，如 [eudicots_odb12, embryophyta_odb12]；为空时报错
-  busco_download_path: null      # 预下载的 lineage 目录 (离线使用)
+  busco_lineages: []             # 必填，由用户指定，如 [eudicotyledons_odb12, embryophyta_odb12]；为空时报错
+                                 #       （名称见 https://busco-data.ezlab.org/v5/data/file_versions.tsv）
+  busco_download_path: null      # BUSCO 数据集目录（含 lineages/），BRAKER4 的 compleasm 也共用。其中缺少的数据集在
+                                 #       BUSCO 运行前自动下载：目录可写时下载到这里，否则下载到
+                                 #       <outdir>/00_Data/busco_downloads；null = 总是下载到后者
   reference_gff: null   # 可选：已有参考注释（原始序列名）；与各注释来源做 CDS 水平的一致性比较，写入报告
   # OMAmer 数据库（OMArk 用）：
   #   LUCA.h5          9.9 GB，运行约需 12 GB 内存（resources.omark.mem_mb 至少 14000）；推荐，可识别任意来源的污染

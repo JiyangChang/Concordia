@@ -16,6 +16,9 @@ rule braker4_inputs:
         masked=SOFTMASKED,
         proteins=PROTEINS,
         bams=[b for b in (B4_BAM, B4_ISO) if b],
+        # only while samples.csv is missing (as busco_ready): existing BRAKER4 runs are not repeated because of it
+        busco=lambda wc: [] if os.path.exists(O("03_Ab_initio/BRAKER4/samples.csv"))
+        else ancient(O("00_Data/busco_datasets/compleasm.ready")),
     output:
         csv=O("03_Ab_initio/BRAKER4/samples.csv"),
         ini=O("03_Ab_initio/BRAKER4/config.ini"),
@@ -24,9 +27,9 @@ rule braker4_inputs:
         bam=B4_BAM,
         iso=B4_ISO,
         lineage=P.busco_lineages[0],
-        # BUSCO datasets for BRAKER4's compleasm: qc.busco_download_path (shared with our BUSCO), else a directory in
-        # the results (never the BRAKER4 code directory)
-        busco_dl=P.busco_download_path or O("03_Ab_initio/BRAKER4/busco_downloads"),
+        # BUSCO datasets for BRAKER4's compleasm, prepared by busco_compleasm_data: qc.busco_download_path when
+        # writable (shared with our BUSCO), else 00_Data/busco_downloads in the results
+        busco_dl=COMPLEASM_DIR,
         # the repository ships config.ini.example (no config.ini)
         template=next((os.path.join(B4_REPO, f) for f in ("config.ini", "config.ini.example")
                        if os.path.exists(os.path.join(B4_REPO, f))), os.path.join(B4_REPO, "config.ini.example")),
@@ -75,7 +78,7 @@ rule braker4:
         # so must the shared BUSCO dataset directory used by BRAKER4's compleasm
         bind=",".join(dict.fromkeys([x for x in str(B4.get("bind", "")).split(",") if x] + [OUT] +
                                     [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f] +
-                                    ([os.path.realpath(P.busco_download_path)] if P.busco_download_path else []))),
+                                    [os.path.realpath(COMPLEASM_DIR)])),
         executor=braker4_executor_args(),
     threads: res("braker4")["threads"]
     resources:

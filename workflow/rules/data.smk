@@ -74,19 +74,84 @@ rule genome_stats:
         """, env="core")
 
 
-def busco_offline():
-    return f"--offline --download_path {P.busco_download_path}" if P.busco_download_path else ""
+# BUSCO datasets: present ones are used, missing ones are downloaded first by busco_dataset (see lib/busco_data.py
+# for where); BUSCO itself then always runs offline.
+BUSCO_LOCAL = O("00_Data/busco_downloads")
+COMPLEASM_DIR = busco_data.compleasm_dir(P.busco_download_path, BUSCO_LOCAL)
+_busco_errs = busco_data.check_names(P.busco_lineages, [P.busco_download_path, BUSCO_LOCAL])
+if _busco_errs:
+    raise ConfigError("Config errors:\n  - " + "\n  - ".join(_busco_errs))
+
+
+def busco_dir(lineage):
+    return busco_data.lineage_dir(P.busco_download_path, BUSCO_LOCAL, lineage)
+
+
+def busco_ready(output_pattern):
+    """Input function: the dataset flag, only while the BUSCO result itself is missing, so existing results (e.g. of
+    analyses started before this step existed) are not re-run because of it; ancient: a re-created flag triggers
+    nothing either."""
+    def f(wildcards):
+        if os.path.exists(output_pattern.format(**wildcards)):
+            return []
+        return ancient(O("00_Data/busco_datasets", f"{wildcards.lineage}.busco.ready"))
+    return f
+
+
+def busco_offline(wildcards):
+    return f"--offline --download_path {busco_dir(wildcards.lineage)}"
+
+
+localrules: busco_dataset, busco_compleasm_data, busco_datasets
+
+
+rule busco_dataset:
+    """Check that a BUSCO dataset is present; download it when missing (runs in the main Snakemake process, i.e. on
+    the machine / login node that started the workflow, which usually has internet access)."""
+    output:
+        O("00_Data/busco_datasets/{lineage}.busco.ready"),
+    params:
+        script=script("00_Data", "00_busco_dataset.{lineage}"),
+        dir=lambda wc: busco_dir(wc.lineage),
+    log:
+        **logs("00_Data", "00_busco_dataset.{lineage}"),
+    shell:
+        SH(PY("fetch_busco.py") + """ --dir {params.dir} --lineage {wildcards.lineage} --done {output}
+        """)
+
+
+rule busco_compleasm_data:
+    """Files BRAKER4's compleasm needs (first BUSCO lineage, eukaryota_odb12, placement files, markers)."""
+    output:
+        O("00_Data/busco_datasets/compleasm.ready"),
+    params:
+        script=script("00_Data", "00_busco_compleasm"),
+        dir=COMPLEASM_DIR,
+        lineage=P.busco_lineages[0] if P.busco_lineages else "",
+    log:
+        **logs("00_Data", "00_busco_compleasm"),
+    shell:
+        SH(PY("fetch_busco.py") + """ --dir {params.dir} --lineage {params.lineage} --compleasm --done {output}
+        """)
+
+
+rule busco_datasets:
+    """Target to fetch all BUSCO datasets in advance (e.g. on a login node): snakemake ... busco_datasets"""
+    input:
+        expand(O("00_Data/busco_datasets/{lineage}.busco.ready"), lineage=P.busco_lineages),
+        O("00_Data/busco_datasets/compleasm.ready"),
 
 
 rule busco_genome:
     input:
-        GENOME,
+        genome=GENOME,
+        ready=busco_ready(O("00_Data/qc/busco_genome/{lineage}/short_summary.txt")),
     output:
         O("00_Data/qc/busco_genome/{lineage}/short_summary.txt"),
     params:
         script=script("00_Data", "04_busco_genome.{lineage}"),
         outpath=O("00_Data/qc/busco_genome"),
-        offline=busco_offline(),
+        offline=busco_offline,
     threads: res("busco")["threads"]
     resources:
         mem_mb=res("busco")["mem_mb"],
@@ -97,7 +162,7 @@ rule busco_genome:
         "../envs/qc.yaml"
     shell:
         SH("""
-        busco -i {input} -m genome -l {wildcards.lineage} -o {wildcards.lineage} \\
+        busco -i {input.genome} -m genome -l {wildcards.lineage} -o {wildcards.lineage} \\
               --out_path {params.outpath} -c {threads} -f {params.offline}
         cp {params.outpath}/{wildcards.lineage}/short_summary.specific.*.txt {output}
         """, env="qc", versions="busco --version")

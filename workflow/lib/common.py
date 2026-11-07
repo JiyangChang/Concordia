@@ -129,7 +129,7 @@ class Project:
         if not self.genome:
             errs.append("`genome` is required")
         if not self.busco_lineages:
-            errs.append("`qc.busco_lineages` must be set by the user (e.g. [eudicots_odb12]); no default is used")
+            errs.append("`qc.busco_lineages` must be set by the user (e.g. [eudicotyledons_odb12]); no default is used")
         if not self.short and not self.long and not self.rna_allow_none:
             errs.append("at least one of rna.short / rna.long must list samples "
                         "(set rna.allow_none: true to annotate without RNA-seq: BRAKER4 EP, no EviAnn/UTR/lncRNA)")

@@ -94,7 +94,7 @@ eviann:
 
 qc:
   busco_lineages: [brassicales_odb12, embryophyta_odb12]
-  busco_download_path: "/shared/myname/db/busco_downloads"   # required without internet on compute nodes; shared with BRAKER4
+  busco_download_path: "/shared/myname/db/busco_downloads"   # shared with BRAKER4; missing datasets are downloaded (section 6)
   omark_db: "/shared/myname/db/omamer/LUCA.h5"
 
 function:
@@ -156,6 +156,10 @@ conda clean -y --tarballs         # removes the downloaded archives (about 3 GB)
 conda activate /shared/myname/conda_envs/<omark environment directory>
 python -c "from ete3 import NCBITaxa; NCBITaxa()"
 conda activate concordia
+
+# BUSCO datasets of qc.busco_lineages missing from busco_download_path (or the files BRAKER4's compleasm needs):
+# downloaded here, because the main process later runs as a job on a compute node that may have no internet
+$SM busco_datasets
 
 $SM -n                            # dry-run: checks the configuration and lists all jobs
 ```

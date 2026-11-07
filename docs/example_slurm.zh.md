@@ -91,7 +91,7 @@ eviann:
 
 qc:
   busco_lineages: [brassicales_odb12, embryophyta_odb12]
-  busco_download_path: "/shared/myname/db/busco_downloads"   # 计算节点不能联网时必填；BRAKER4 也共用
+  busco_download_path: "/shared/myname/db/busco_downloads"   # BRAKER4 也共用；缺少的数据集自动下载（第 6 节）
   omark_db: "/shared/myname/db/omamer/LUCA.h5"
 
 function:
@@ -152,6 +152,10 @@ conda clean -y --tarballs         # 删除下载的压缩包（约 3 GB）
 conda activate /shared/myname/conda_envs/<omark 环境目录>
 python -c "from ete3 import NCBITaxa; NCBITaxa()"
 conda activate concordia
+
+# busco_download_path 中缺少的 qc.busco_lineages 数据集（及 BRAKER4 的 compleasm 需要的文件）在这里下载，
+# 因为之后主进程作为作业运行在计算节点上，可能不能联网
+$SM busco_datasets
 
 $SM -n                            # dry-run：检查配置并列出全部任务
 ```

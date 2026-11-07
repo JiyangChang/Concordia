@@ -116,10 +116,11 @@ bash scripts/download_databases.sh /path/to/databases   # 可重复运行，断�
 
 ### 5.2 各数据库说明
 
-- **BRAKER4 与 BUSCO 数据集：** BRAKER4 在基因预测中运行 compleasm（BUSCO 基因的 CDS 提示给 AUGUSTUS；TSEBRA 合并后补回丢失的 BUSCO 基因），这与流程的 BUSCO 评估无关、不能关闭（`skip_busco` 只关闭 BRAKER4 自己的 BUSCO 评估）。流程把 `qc.busco_download_path` 写入 BRAKER4 的 `config.ini`，两者共用同一份数据集，并自动挂载进 BRAKER4 的容器；compleasm 每次运行会刷新该目录下的 `file_versions.tsv.hash`，所以目录需要可写。未设置 `qc.busco_download_path` 时，BRAKER4 下载到结果目录 `03_Ab_initio/BRAKER4/busco_downloads`（不再写入 `external/BRAKER4`）。
+- **BRAKER4 与 BUSCO 数据集：** BRAKER4 在基因预测中运行 compleasm（BUSCO 基因的 CDS 提示给 AUGUSTUS；TSEBRA 合并后补回丢失的 BUSCO 基因），这与流程的 BUSCO 评估无关、不能关闭（`skip_busco` 只关闭 BRAKER4 自己的 BUSCO 评估）。流程把 BUSCO 数据集目录写入 BRAKER4 的 `config.ini`，两者共用同一份数据集，并自动挂载进 BRAKER4 的容器；compleasm 每次运行会刷新该目录下的 `file_versions.tsv.hash`，所以目录必须可写：`qc.busco_download_path` 只读（或未设置）时，BRAKER4 改用 `<outdir>/00_Data/busco_downloads`。
+- **缺少的 BUSCO 数据集自动下载：** 在任何 BUSCO 步骤之前，`busco_dataset` 步骤检查 `qc.busco_lineages` 中的每个数据集（`busco_compleasm_data` 检查 compleasm 需要的文件），缺少的会下载并核对 md5，目录结构与下载脚本相同。`qc.busco_download_path` 中已有的数据集直接使用；缺少的在该目录可写时下载到其中，否则下载到 `<outdir>/00_Data/busco_downloads`（未设置 `qc.busco_download_path` 时也用这里）。BUSCO 本身始终以 `--offline` 运行。这些步骤在 Snakemake 主进程中运行，即启动流程的那台机器；如果该节点不能联网，先在能联网的节点上预先下载：`snakemake ... busco_datasets`（命令和配置与正式运行相同，目标写 `busco_datasets`）。不存在的数据集名称会报错并列出相近的名称：目录里已有 `file_versions.tsv` 时在启动时检查，否则由下载步骤检查。
 - **BUSCO lineage 的选择：** 先在 https://busco-data.ezlab.org/v5/data/file_versions.tsv 里确认名称存在。
   - 例如辣木属于十字花目，应选 `brassicales_odb12`，再加更广的 `embryophyta_odb12`。
-  - **odb12 中没有 `eudicots_odb12`**，只有 `eudicots_odb10`。
+  - **odb12 中没有 `eudicots_odb12`**：odb12 的名称是 `eudicotyledons_odb12`（`eudicots_odb10` 是旧的 odb10 数据集）。
   - 下载脚本中的 lineage 列表可按物种修改。
 - **InterProScan：**
   - 解压后需要运行一次 `python3 setup.py -f interproscan.properties` 来建立 HMM 索引。流程中的 `interproscan_setup` rule 会在第一次运行时自动完成，并在安装目录写入 `.pipeline_setup_done` 标记；因此第一次运行时该目录必须可写（之后只读也可以）。不需要另外安装 InterProScan：`download_databases.sh` 下载的就是完整发行版（程序 + 全部成员数据库），`function.interproscan_dir` 指向解压后的目录即可；所需的 Java 11 由 `function` 环境提供。
@@ -193,7 +194,8 @@ $SM --profile $A/profiles/local data_qc
 |---|---|
 | BRAKER4 报 `apptainer: command not found` 或无法创建命名空间 | 没有安装 Apptainer，或者在 Ubuntu 24.04 上从 conda 安装（受 AppArmor 限制）。按第 2 节用 PPA 安装 |
 | GeMoMa 只打印工具列表就退出 | 在 bioconda 包装脚本后面又写了 `CLI`；`gemoma.cmd` 应为 `GeMoMa -Xmx{mem_gb}g` |
-| BUSCO 报找不到 lineage | lineage 名称不存在（例如 `eudicots_odb12`），或者 `busco_download_path` 没有指向包含 `lineages/` 的目录 |
+| BUSCO 报找不到 lineage | lineage 名称不存在（例如 `eudicots_odb12`；报错会列出相近的名称），或者 `busco_download_path` 没有指向包含 `lineages/` 的目录 |
+| `busco_dataset` 报 "cannot download" | 运行 Snakemake 主进程的节点不能联网：先在能联网的节点上运行一次 `snakemake ... busco_datasets`，再重新启动流程 |
 | OMArk 被系统 OOM 终止 | OMAmer 会把整个 LUCA.h5 读进内存；`resources.omark.mem_mb` 至少 13 GB，并保证它不和其它大任务同时运行 |
 | InterProScan 报 Java 版本过低 | 系统 Java 是 8；流程使用 `function` 环境里的 openjdk 11，请确认 profile 中启用了 `software-deployment-method: [conda]`（两个 profile 默认已启用），没有改用 PATH 中的软件 |
 | 建环境时报 `create: The following argument was not expected: --no-default-packages` | Snakemake 8.18.2 与 mamba 2.x 不兼容；profile 中已设置 `conda-frontend: conda`（conda 默认使用 libmamba 求解器） |

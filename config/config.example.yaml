@@ -219,8 +219,11 @@ naming:
   lncrna_tag: L
 
 qc:
-  busco_lineages: []             # required, set by the user, e.g. [eudicots_odb12, embryophyta_odb12]; empty = error
-  busco_download_path: null      # pre-downloaded lineage directory (offline use)
+  busco_lineages: []             # required, set by the user, e.g. [eudicotyledons_odb12, embryophyta_odb12]; empty = error
+                                 #   (names: https://busco-data.ezlab.org/v5/data/file_versions.tsv)
+  busco_download_path: null      # BUSCO dataset directory (holds lineages/), shared with BRAKER4's compleasm. Datasets
+                                 #   missing there are downloaded automatically before BUSCO runs: into this directory
+                                 #   when writable, else into <outdir>/00_Data/busco_downloads; null = always there
   reference_gff: null   # optional: existing reference annotation (original sequence names); CDS-level agreement
                         #   with every annotation source, shown in the report
   # OMAmer database (for OMArk):

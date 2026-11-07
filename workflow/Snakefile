@@ -15,7 +15,8 @@ from snakemake.utils import min_version
 min_version("8.0")
 
 sys.path.insert(0, os.path.join(workflow.basedir, "lib"))
-from common import Project, QC_DIRS, MINIMAP2_PRESET, GEMOMA_STRAND, HISAT2_STRAND  # noqa: E402
+import busco_data  # noqa: E402
+from common import ConfigError, Project, QC_DIRS, MINIMAP2_PRESET, GEMOMA_STRAND, HISAT2_STRAND  # noqa: E402
 from shell_script import SH  # noqa: E402
 
 if os.path.exists("config/config.yaml") and not workflow.overwrite_configfiles:
