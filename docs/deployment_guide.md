@@ -94,7 +94,7 @@ profile 已开启 `software-deployment-method: [conda]`，命令行不必再加 
 ### 5.1 一键下载
 
 ```bash
-bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可重复运行，断点续传
+bash scripts/download_databases.sh /path/to/databases   # 可重复运行，断点续传
 ```
 
 脚本**逐个**处理：一个文件下载、校验、解压、`sync` 完成后才开始下一个；每步开始前检查内核日志，如果 USB 存储报告命令超时就暂停等待。之所以不并行，是因为在 USB 移动硬盘上同时下载和解压多个大文件，可能使部分 USB 转接芯片（UAS 驱动下）反复超时、硬盘停止响应（见第 8 节）。完成后的目录结构如下：

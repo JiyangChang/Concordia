@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# 基因组注释流程的数据库下载（地址于 2026-11-04 核实）
+# Database download for the Concordia genome annotation workflow (URLs verified on 2026-11-04)
 #
-# 用法:  bash download_databases.sh <目标目录> [--limit-rate 15m]
+# Usage:  bash download_databases.sh <target directory>
 #
-# - 逐个下载：一个文件下载、校验、解压、sync 完成后才开始下一个（对 USB 移动硬盘友好）
-# - 可重复运行：已完成的项目（目录中有 .done 标记）会跳过；wget -c 断点续传
-# - 每步开始前检查内核日志：最近 2 分钟内有 USB 存储命令超时（uas_eh_abort）就等待硬盘恢复
-# - 每个文件下载后校验（md5 / gzip CRC / 文件大小），失败则删除重下，最多 3 次
-# - 大文件解压限速写入（UNZIP_RATE_MB，默认 15 MB/s，每 256 MB fdatasync），写完后清缓存从盘上重读比对 md5
-#   （部分 USB 移动硬盘在 UAS 驱动下可能静默写坏数据，表现为解压后的文件 md5 不符）
+# - One item at a time: a file is downloaded, verified, decompressed and synced before the next one starts
+#   (friendly to external / USB disks)
+# - Can be re-run: finished items (.done markers in the target directory) are skipped; wget -c resumes downloads
+# - Before each step the kernel log is checked: if USB storage reported command timeouts (uas_eh_abort) in the last
+#   2 minutes, the script waits for the disk to recover
+# - Every download is verified (md5 / gzip CRC / file size); on failure it is deleted and fetched again, up to 3 times
+# - Large files are decompressed while computing the md5 of the stream; the written file is then re-read from disk
+#   (page cache dropped) and compared, because some USB disks can silently corrupt written data
 set -Eeuo pipefail   # -E: the ERR trap also fires inside functions
-trap 'echo "[$(date "+%F %T")] ERROR: 脚本在第 $LINENO 行退出（退出码 $?）"' ERR
-DB=${1:?"用法: bash download_databases.sh <目标目录> [--limit-rate 15m]"}
-RATE=${3:-15m}
+trap 'echo "[$(date "+%F %T")] ERROR: script exited at line $LINENO (exit code $?)"' ERR
+DB=${1:?"usage: bash download_databases.sh <target directory>"}
 mkdir -p "$DB" && DB=$(cd "$DB" && pwd) && cd "$DB"
 
 log() { echo "[$(date '+%F %T')] $*"; }
@@ -24,7 +25,7 @@ disk_ok() {   # wait while the USB storage bridge reports aborted commands
     while true; do
         n=$(journalctl -k --since "-2 min" --no-pager 2>/dev/null | grep -c uas_eh_abort || true)
         [ "$n" = 0 ] && return 0
-        log "检测到 $n 次 USB 存储命令超时，暂停 60 秒等待硬盘恢复"
+        log "USB storage reported $n command timeouts; waiting 60 s for the disk to recover"
         sync; sleep 60
     done
 }
@@ -34,8 +35,8 @@ fetch() {     # fetch <dir> <url> ...
     mkdir -p "$d"
     for u in "$@"; do
         disk_ok
-        log "下载 $(basename "$u")"
-        wget -q -c --tries=5 --waitretry=30 --limit-rate="$RATE" -P "$d" "$u" || { log "ERROR: wget 失败: $u"; return 1; }
+        log "downloading $(basename "$u")"
+        wget -q -c --tries=5 --waitretry=30 -P "$d" "$u" || { log "ERROR: wget failed: $u"; return 1; }
         sync
     done
 }
@@ -46,29 +47,29 @@ verified_fetch() {   # verified_fetch <dir> <url> <check: md5:<md5 url>|gzip|siz
     mkdir -p "$d"
     for i in 1 2 3; do
         disk_ok
-        log "下载 $(basename "$u")（第 $i 次）"
-        if ! wget -q -c --tries=5 --waitretry=30 --limit-rate="$RATE" -P "$d" "$u"; then
-            log "wget 失败（退出码 $?），30 秒后重试"
+        log "downloading $(basename "$u") (attempt $i)"
+        if ! wget -q -c --tries=5 --waitretry=30 -P "$d" "$u"; then
+            log "wget failed (exit code $?); retrying in 30 s"
             sleep 30
             continue
         fi
         sync
         case $check in
             md5:*) if ! wget -q --tries=5 --waitretry=30 -O "$f.md5" "${check#md5:}" || [ ! -s "$f.md5" ]; then
-                       log "md5 文件下载失败，30 秒后重试（不删除已下载的数据文件）"
+                       log "md5 file download failed; retrying in 30 s (the downloaded data file is kept)"
                        rm -f "$f.md5"; sleep 30; continue
                    fi
                    (cd "$d" && md5sum -c "$(basename "$f").md5") && return 0 ;;
-            gzip)  slow gzip -t "$f" && { log "gzip CRC 校验通过"; return 0; } ;;
+            gzip)  slow gzip -t "$f" && { log "gzip CRC check passed"; return 0; } ;;
             size)  local want have
                    want=$( (curl -sSIL --max-time 60 "$u" || true) | awk 'tolower($1)=="content-length:" {v=$2} END {gsub(/\r/,"",v); print v}')
                    have=$(stat -c %s "$f")
-                   [ -n "$want" ] && [ "$want" = "$have" ] && { log "文件大小一致（$have 字节）"; return 0; } ;;
+                   [ -n "$want" ] && [ "$want" = "$have" ] && { log "file size matches ($have bytes)"; return 0; } ;;
         esac
-        log "校验失败：删除 $(basename "$f")，重新下载"
+        log "verification failed: deleting $(basename "$f") and downloading again"
         rm -f "$f"
     done
-    log "ERROR: $(basename "$u") 三次下载均未通过校验"
+    log "ERROR: $(basename "$u") failed verification in all 3 attempts"
     return 1
 }
 
@@ -89,76 +90,47 @@ print(h.hexdigest())
 PY
 }
 
-# python code is passed with -c (not "python3 - <<heredoc"): the heredoc would take over stdin,
-# which must carry the decompressed data
-THROTTLE_PY=$(cat <<'PY'
-import hashlib, os, sys, time
-out, rate = sys.argv[1], float(sys.argv[2]) * 1024 * 1024
-h, done, since_sync, t0 = hashlib.md5(), 0, 0, time.time()
-fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-src = sys.stdin.buffer
-while True:
-    b = src.read(4 << 20)
-    if not b:
-        break
-    h.update(b)
-    mv = memoryview(b)
-    while mv:
-        n = os.write(fd, mv)
-        mv = mv[n:]
-    done += len(b); since_sync += len(b)
-    if since_sync >= 256 << 20:
-        os.fdatasync(fd); since_sync = 0
-    ahead = done / rate - (time.time() - t0)
-    if ahead > 0:
-        time.sleep(ahead)
-os.fdatasync(fd); os.close(fd)
-print(h.hexdigest())
-PY
-)
-
-throttled_write() {  # throttled_write <out> <rate MB/s>: stdin -> file at a steady rate, fdatasync every 256 MB;
-                     # prints the md5 of the stream. Avoids write bursts that made the USB disk drop out.
-    ionice -c3 nice -n 19 python3 -c "$THROTTLE_PY" "$1" "$2"
+write_with_md5() {   # write_with_md5 <out>: stdin -> file; prints the md5 of the stream
+    tee "$1" | md5sum | cut -d" " -f1
 }
 
 verified_unzip() {   # verified_unzip <file.gz> <out>: decompress and check what was WRITTEN to disk
     local gz=$1 out=$2 want have i
     if [ -s "$out" ]; then          # already decompressed earlier: verify without rewriting
-        log "校验已解压的 $(basename "$out")（压缩包数据流 md5 对比盘上文件 md5）"
+        log "verifying the decompressed $(basename "$out") (md5 of the archive stream vs. md5 of the file on disk)"
         want=$(slow gzip -dc "$gz" | md5sum | cut -d" " -f1)
         sync; have=$(uncached_md5 "$out")
         if [ "$want" = "$have" ]; then
             echo "$want  $(basename "$out")" > "$out.md5"; touch "$out.verified"
-            log "$(basename "$out") 校验通过（$have）"; return 0
+            log "$(basename "$out") verified ($have)"; return 0
         fi
-        log "$(basename "$out") 与压缩包不一致，重新解压"
+        log "$(basename "$out") differs from the archive; decompressing again"
     fi
     for i in 1 2 3; do
         disk_ok
-        log "解压 $(basename "$gz")（第 $i 次，限速 ${UNZIP_RATE_MB:-15} MB/s，边写边计算 md5）"
-        want=$(slow gzip -dc "$gz" | throttled_write "$out.tmp" "${UNZIP_RATE_MB:-15}")
+        log "decompressing $(basename "$gz") (attempt $i, computing the md5 of the stream)"
+        want=$(slow gzip -dc "$gz" | write_with_md5 "$out.tmp")
         sync
         have=$(uncached_md5 "$out.tmp")
         if [ "$want" = "$have" ]; then
             mv -f "$out.tmp" "$out"
             echo "$want  $(basename "$out")" > "$out.md5"; touch "$out.verified"
-            log "$(basename "$out") 写入校验通过（$have）"; return 0
+            log "$(basename "$out") written and verified ($have)"; return 0
         fi
-        log "写入校验失败（数据流 $want，盘上 $have），删除后重新解压"
+        log "write verification failed (stream $want, disk $have); deleting and decompressing again"
         rm -f "$out.tmp"
     done
-    log "ERROR: $(basename "$out") 三次解压均未通过写入校验"; return 1
+    log "ERROR: $(basename "$out") failed write verification in all 3 attempts"; return 1
 }
 
 step() {      # step <name> <function>: run once, mark done
     local name=$1 fn=$2
-    if [ -f "$DB/.done.$name" ]; then log "$name 已完成，跳过"; return; fi
+    if [ -f "$DB/.done.$name" ]; then log "$name already done, skipped"; return; fi
     log "=== $name ==="
     "$fn"
     sync
     touch "$DB/.done.$name"
-    log "$name 完成"
+    log "$name done"
 }
 
 dfam() {
@@ -175,7 +147,7 @@ go_kegg() {
 }
 
 busco() {
-    # 按物种修改 lineage 列表；名称和日期见 https://busco-data.ezlab.org/v5/data/file_versions.tsv
+    # Adapt the lineage list to the species; names and dates: https://busco-data.ezlab.org/v5/data/file_versions.tsv
     local l
     for l in brassicales_odb12.2026-05-22 embryophyta_odb12.2026-05-22; do
         fetch busco_downloads "https://busco-data.ezlab.org/v5/data/lineages/$l.tar.gz"
@@ -193,7 +165,7 @@ busco() {
 compleasm() {
     local L=busco_downloads/lineages base=https://busco-data.ezlab.org/v5/data name date md5 cat info f
     mkdir -p "$L/placement_files"
-    md5_ok() { [ "$(md5sum < "$1" | cut -d' ' -f1)" = "$2" ] || { log "ERROR: $(basename "$1") md5 不符"; return 1; }; }
+    md5_ok() { [ "$(md5sum < "$1" | cut -d' ' -f1)" = "$2" ] || { log "ERROR: md5 of $(basename "$1") does not match"; return 1; }; }
     rm -f "$L/file_versions.tsv" "$L/file_versions.tsv.hash"      # small; always the current version
     fetch "$L" "$base/file_versions.tsv.hash" "$base/file_versions.tsv"
     md5_ok "$L/file_versions.tsv" "$(awk 'NR==1{print $1}' "$L/file_versions.tsv.hash")"
@@ -234,10 +206,10 @@ orthodb_levels() {   # taxonomy tables for orthodb_subset (BRAKER4 protein subse
     done
 }
 
-omamer() { verified_fetch omamer https://omabrowser.org/All/LUCA.h5 size; }   # 官方不提供 md5
+omamer() { verified_fetch omamer https://omabrowser.org/All/LUCA.h5 size; }   # no official md5
 
-# 植物 OMAmer 库（1.5 GB，运行约需 2 GB 内存）：内存不足 16 GB 的机器用它代替 LUCA.h5（约需 12 GB 内存）。
-# 完整性/一致性评估不受影响，但只能识别植物来源的污染。
+# Plant OMAmer database (1.5 GB, needs about 2 GB RAM): replaces LUCA.h5 (about 12 GB RAM) on machines with < 16 GB.
+# Completeness / consistency are unaffected, but only plant contamination is detected.
 omamer_plants() { verified_fetch omamer https://omabrowser.org/All/Viridiplantae.h5 size; }
 
 interproscan() {
@@ -245,7 +217,7 @@ interproscan() {
     verified_fetch interproscan "$b/interproscan-$v-64-bit.tar.gz" "md5:$b/interproscan-$v-64-bit.tar.gz.md5"
     disk_ok; slow tar -pxzf "interproscan/interproscan-$v-64-bit.tar.gz" -C interproscan
     rm -f "interproscan/interproscan-$v-64-bit.tar.gz"
-    # 首次使用前还需运行 setup.py 建索引：流程中的 interproscan_setup 步骤会自动完成
+    # setup.py (HMM indexes) must run once before first use: the workflow's interproscan_setup step does it
 }
 
 eggnog() {
@@ -256,7 +228,7 @@ eggnog() {
     fi
     for f in eggnog_proteins.dmnd.gz eggnog.db.gz; do
         out=eggnog/${f%.gz}
-        [ -f "$out.verified" ] && { log "$(basename "$out") 已校验，跳过"; continue; }
+        [ -f "$out.verified" ] && { log "$(basename "$out") already verified, skipped"; continue; }
         verified_fetch eggnog "$b/$f" gzip       # gzip CRC of the download
         verified_unzip "eggnog/$f" "$out"        # md5 of the decompressed stream vs. bytes on disk
         rm -f "eggnog/$f"
@@ -266,7 +238,7 @@ eggnog() {
 
 swissprot() {   # EviAnn protein set (eviann.swissprot) when homolog proteins are not to be used
     local f=uniprot/uniprot_sprot.fasta
-    [ -f "$f.verified" ] && { log "uniprot_sprot.fasta 已校验，跳过"; return 0; }
+    [ -f "$f.verified" ] && { log "uniprot_sprot.fasta already verified, skipped"; return 0; }
     verified_fetch uniprot https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz gzip
     verified_unzip uniprot/uniprot_sprot.fasta.gz "$f"
     rm -f uniprot/uniprot_sprot.fasta.gz
@@ -284,5 +256,5 @@ step omamer_plants omamer_plants
 step interproscan interproscan
 step eggnog eggnog
 step swissprot swissprot
-log "全部完成"
+log "all done"
 ls -la "$DB" "$DB"/*/ | sed -n "1,60p" || true   # sed reads everything: no SIGPIPE under pipefail

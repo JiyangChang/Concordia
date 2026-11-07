@@ -101,7 +101,7 @@ Environments and versions: `workflow/envs/README.md`. In particular:
 ### 5.1 One-step download
 
 ```bash
-bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # can be re-run; resumes downloads
+bash scripts/download_databases.sh /path/to/databases   # can be re-run; resumes downloads
 ```
 
 The script handles **one item at a time**: a file is downloaded, verified, decompressed and `sync`ed before the next
