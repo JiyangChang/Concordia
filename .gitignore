@@ -9,3 +9,6 @@ external/BRAKER4/.snakemake/
 GeMoMa_temp/
 .Rhistory
 *.swp
+
+# local development notes, design reports and repository backups (not public)
+dev/
