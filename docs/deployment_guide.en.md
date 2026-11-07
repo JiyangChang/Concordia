@@ -134,7 +134,10 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 - **InterProScan:**
   - After unpacking, `python3 setup.py -f interproscan.properties` must be run once to build the HMM indexes. The
     `interproscan_setup` rule does this on the first run and writes a `.pipeline_setup_done` marker into the
-    installation directory.
+    installation directory, so the directory must be writable on the first run (read-only is fine afterwards).
+    No separate InterProScan installation is needed: `download_databases.sh` fetches the complete release
+    (program + all member databases); point `function.interproscan_dir` to the unpacked directory. Java 11
+    comes from the `function` environment.
   - Needs Java 11+.
   - The complete release includes all member databases; `function.interproscan_appl` can restrict the run to some,
     e.g. `Pfam,PANTHER`.

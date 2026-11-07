@@ -78,7 +78,7 @@ rule interproscan:
         {params.exe} -i {input.faa} -f tsv,gff3 -goterms -pa -cpu {threads} -dp {params.appl} \\
                      -b {params.base} -T {params.tmp}
         rm -rf {params.tmp}
-        """, env="function", versions="interproscan.sh -version 2>/dev/null | head -n 3")
+        """, env="function", versions=f"{IPS_DIR}/interproscan.sh -version 2>/dev/null | head -n 3")   # not on PATH: use the configured release
 
 
 rule eggnog:

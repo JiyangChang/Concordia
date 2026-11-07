@@ -122,7 +122,7 @@ bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可�
   - **odb12 中没有 `eudicots_odb12`**，只有 `eudicots_odb10`。
   - 下载脚本中的 lineage 列表可按物种修改。
 - **InterProScan：**
-  - 解压后需要运行一次 `python3 setup.py -f interproscan.properties` 来建立 HMM 索引。流程中的 `interproscan_setup` rule 会在第一次运行时自动完成，并在安装目录写入 `.pipeline_setup_done` 标记。
+  - 解压后需要运行一次 `python3 setup.py -f interproscan.properties` 来建立 HMM 索引。流程中的 `interproscan_setup` rule 会在第一次运行时自动完成，并在安装目录写入 `.pipeline_setup_done` 标记；因此第一次运行时该目录必须可写（之后只读也可以）。不需要另外安装 InterProScan：`download_databases.sh` 下载的就是完整发行版（程序 + 全部成员数据库），`function.interproscan_dir` 指向解压后的目录即可；所需的 Java 11 由 `function` 环境提供。
   - 需要 Java 11+。
   - 完整发行版包含全部成员数据库；需要时可以用 `function.interproscan_appl` 只运行部分数据库，例如 `Pfam,PANTHER`。
 - **eggNOG-mapper：** 也可以用 `download_eggnog_data.py --data_dir <dir> -y` 下载；脚本直接从 `http://eggnog5.embl.de/download/emapperdb-5.0.2/` 下载相同的文件。
