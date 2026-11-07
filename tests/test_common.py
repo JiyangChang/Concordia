@@ -141,6 +141,7 @@ def test_long_read_counts_column(tmp_path):
 
 
 def test_path_settings_tilde_and_relative(tmp_path, monkeypatch):
+    import os
     from common import _abs
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     base = str(tmp_path / "analysis")
