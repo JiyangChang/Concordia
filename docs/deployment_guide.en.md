@@ -114,7 +114,8 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 | `orthodb/odb12v2_levels.tab.gz`, `odb12v2_level2species.tab.gz` | OrthoDB level tables: extract a protein subset by level (e.g. Brassicales) to reduce BRAKER4's disk use | 0.3 MB | — | `orthodb_subset.levels_tab`, `orthodb_subset.level2species_tab` |
 | `omamer/LUCA.h5` | OMAmer database (for OMArk), needs about 12 GB RAM | 9.9 GB | — | `qc.omark_db` |
 | `omamer/Viridiplantae.h5` | plant OMAmer database: replaces LUCA.h5 with < 16 GB RAM (about 2 GB RAM; detects plant contamination only) | 1.5 GB | — | `qc.omark_db` |
-| `busco_downloads/lineages/<lineage>` | BUSCO datasets (offline mode) | about 0.2 GB each | — | `qc.busco_download_path`, `qc.busco_lineages` |
+| `busco_downloads/lineages/<lineage>` | BUSCO datasets (offline mode); also used by BRAKER4's compleasm | about 0.2 GB each | — | `qc.busco_download_path`, `qc.busco_lineages` |
+| `eukaryota_odb12`, `placement_files/`, `file_versions.tsv`, `*.done` in `busco_downloads/lineages/` | extra files needed by BRAKER4's compleasm (`compleasm` step; same layout as compleasm's own downloader) | about 0.2 GB | — | as above |
 | `eggnog/` | eggNOG-mapper 5.0.2: `eggnog.db`, `eggnog_proteins.dmnd`, taxa | 12 GB | about 58 GB | `function.eggnog_data_dir` |
 | `interproscan/interproscan-5.78-109.0/` | complete InterProScan release (all member databases) | 7.0 GB | about 30–60 GB | `function.interproscan_dir` |
 | `dfam/dfam40.0.h5` | Dfam 4.0 FamDB root partition: needed by RepeatMasker 4.2 even with a custom library (EDTA); the workflow links it into the conda environment | 60 MB | 450 MB | `repeat.dfam_dir` |
@@ -124,6 +125,7 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 
 ### 5.2 Notes on the databases
 
+- **BRAKER4 and the BUSCO datasets:** BRAKER4 runs compleasm as part of gene prediction (CDS hints of BUSCO genes for AUGUSTUS; BUSCO genes dropped by the TSEBRA merge are rescued), which is unrelated to the workflow's BUSCO assessment and cannot be switched off (`skip_busco` only disables BRAKER4's own BUSCO assessment). The workflow writes `qc.busco_download_path` into BRAKER4's `config.ini`, so both share one copy of the datasets, and binds it into the BRAKER4 containers; compleasm refreshes `file_versions.tsv.hash` in that directory on every run, so it must be writable. Without `qc.busco_download_path`, BRAKER4 downloads into the result directory `03_Ab_initio/BRAKER4/busco_downloads` (no longer into `external/BRAKER4`).
 - **Choosing BUSCO lineages:** check that the name exists in https://busco-data.ezlab.org/v5/data/file_versions.tsv.
   - Moringa belongs to Brassicales, so use `brassicales_odb12`, plus the broader `embryophyta_odb12`.
   - **odb12 has no `eudicots_odb12`**, only `eudicots_odb10`.

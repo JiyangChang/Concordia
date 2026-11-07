@@ -185,6 +185,46 @@ busco() {
     done
 }
 
+# BRAKER4 runs compleasm for gene prediction (BUSCO CDSpart hints, best_by_compleasm) and shares
+# busco_downloads/ with this workflow's BUSCO. compleasm additionally needs, in busco_downloads/lineages/:
+# file_versions.tsv(.hash), eukaryota_odb12, the eukaryota placement files, and a <lineage>.done marker for every
+# lineage (without a marker it downloads the lineage again). Same files and layout as compleasm's own downloader
+# (compleasm_kit/compleasm.py, Downloader), so a later BRAKER4 run downloads nothing.
+compleasm() {
+    local L=busco_downloads/lineages base=https://busco-data.ezlab.org/v5/data name date md5 cat info f
+    mkdir -p "$L/placement_files"
+    md5_ok() { [ "$(md5sum < "$1" | cut -d' ' -f1)" = "$2" ] || { log "ERROR: $(basename "$1") md5 不符"; return 1; }; }
+    rm -f "$L/file_versions.tsv" "$L/file_versions.tsv.hash"      # small; always the current version
+    fetch "$L" "$base/file_versions.tsv.hash" "$base/file_versions.tsv"
+    md5_ok "$L/file_versions.tsv" "$(awk 'NR==1{print $1}' "$L/file_versions.tsv.hash")"
+    touch "$L/file_versions.tsv.done"
+    # eukaryota_odb12 (compleasm's default lineage)
+    if [ ! -f "$L/eukaryota_odb12.done" ]; then
+        read -r name date md5 cat info < <(awk '$1=="eukaryota_odb12" && $5=="lineages"' "$L/file_versions.tsv")
+        fetch "$L" "$base/lineages/eukaryota_odb12.$date.tar.gz"
+        md5_ok "$L/eukaryota_odb12.$date.tar.gz" "$md5"
+        disk_ok; slow tar -xzf "$L/eukaryota_odb12.$date.tar.gz" -C "$L"
+        rm -f "$L/eukaryota_odb12.$date.tar.gz"
+        touch "$L/eukaryota_odb12.done"
+    fi
+    # placement files: every eukaryota entry, file name <prefix>.<middle>.<date>.<suffix>.tar.gz
+    if [ ! -f "$L/placement_files.done" ]; then
+        while read -r name date md5 cat info; do
+            f=$(awk -v n="$name" -v d="$date" 'BEGIN{k=split(n,p,"."); m=p[2]; for(i=3;i<k;i++) m=m"."p[i]; print p[1]"."m"."d"."p[k]".tar.gz"}')
+            fetch "$L/placement_files" "$base/placement_files/$f"
+            md5_ok "$L/placement_files/$f" "$md5"
+            slow tar -xzf "$L/placement_files/$f" -C "$L/placement_files"
+            rm -f "$L/placement_files/$f"
+        done < <(awk '$5=="placement_files" && $1 ~ /eukaryota/' "$L/file_versions.tsv")
+        touch "$L/placement_files.done"
+    fi
+    # markers for the lineages already extracted by the busco step
+    for f in "$L"/*_odb*/; do
+        [ -f "$f/dataset.cfg" ] && touch "${f%/}.done"
+    done
+    ls "$L"
+}
+
 orthodb() { fetch orthodb https://bioinf.uni-greifswald.de/bioinf/partitioned_odb12/Viridiplantae.fa.gz; }
 
 orthodb_levels() {   # taxonomy tables for orthodb_subset (BRAKER4 protein subset by OrthoDB level)
@@ -236,6 +276,7 @@ swissprot() {   # EviAnn protein set (eviann.swissprot) when homolog proteins ar
 step dfam dfam
 step go_kegg go_kegg
 step busco busco
+step compleasm compleasm
 step orthodb orthodb
 step orthodb_levels orthodb_levels
 step omamer omamer

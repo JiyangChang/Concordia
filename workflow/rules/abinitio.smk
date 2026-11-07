@@ -22,6 +22,9 @@ rule braker4_inputs:
         bam=B4_BAM,
         iso=B4_ISO,
         lineage=P.busco_lineages[0],
+        # BUSCO datasets for BRAKER4's compleasm: qc.busco_download_path (shared with our BUSCO), else a directory in
+        # the results (never the BRAKER4 code directory)
+        busco_dl=P.busco_download_path or O("03_Ab_initio/BRAKER4/busco_downloads"),
         # the repository ships config.ini.example (no config.ini)
         template=next((os.path.join(B4_REPO, f) for f in ("config.ini", "config.ini.example")
                        if os.path.exists(os.path.join(B4_REPO, f))), os.path.join(B4_REPO, "config.ini.example")),
@@ -38,6 +41,7 @@ rule braker4_inputs:
         SH("# BRAKER4 mode decided from the data: " + B4_MODE + "\n" + PY("make_braker4_inputs.py") + """ \\
             --sample """ + PREFIX + """ --genome {input.genome} --masked {input.masked} --proteins {input.proteins} \\
             --bam '{params.bam}' --isoseq-bam '{params.iso}' --busco-lineage {params.lineage} \\
+            --busco-download-path {params.busco_dl} \\
             --min-contig {params.min_contig} --skip-busco {params.skip_busco} --run-omark {params.run_omark} \\
             --use-minisplice {params.minisplice} --threads {params.threads} --mem-mb {params.mem} \\
             --runtime {params.runtime} --template {params.template} \\
@@ -64,9 +68,11 @@ rule braker4:
         workdir=B4_DIR,
         snakefile=os.path.join(B4_REPO, "Snakefile"),
         cache=os.path.abspath(B4.get("container_cache", ".singularity_cache")),
-        # 00_Data may hold symbolic links to the inputs: their directories must be visible in the containers
+        # 00_Data may hold symbolic links to the inputs: their directories must be visible in the containers;
+        # so must the shared BUSCO dataset directory used by BRAKER4's compleasm
         bind=",".join(dict.fromkeys([x for x in str(B4.get("bind", "")).split(",") if x] + [OUT] +
-                                    [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f])),
+                                    [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f] +
+                                    ([os.path.realpath(P.busco_download_path)] if P.busco_download_path else []))),
         executor=braker4_executor_args(),
     threads: res("braker4")["threads"]
     resources:

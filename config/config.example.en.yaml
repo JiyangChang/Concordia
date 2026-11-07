@@ -107,7 +107,8 @@ braker4:
   bind: "/home,/scratch"
   min_contig: 10000              # BRAKER4 default; shorter contigs are not predicted
   use_minisplice: false          # only effective with IsoSeq data
-  skip_busco: true               # BUSCO / OMArk are run by this workflow for all sources
+  skip_busco: true               # BUSCO / OMArk are run by this workflow for all sources (only disables BRAKER4's own
+                                 #   assessment; the compleasm it uses for prediction still runs, sharing qc.busco_download_path)
   run_omark: false
   executor: local                # local | slurm: executor of the nested BRAKER4 run (slurm with the SLURM profile)
   max_jobs: 50                   # maximum concurrent SLURM jobs of the nested run

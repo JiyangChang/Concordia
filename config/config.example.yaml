@@ -94,7 +94,8 @@ braker4:
   bind: "/home,/scratch"
   min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
   use_minisplice: false          # 只在使用 IsoSeq 时生效
-  skip_busco: true               # BUSCO/OMArk 统一由本流程评估
+  skip_busco: true               # BUSCO/OMArk 统一由本流程评估（只关闭 BRAKER4 自己的评估；它预测时用的 compleasm 照常运行，
+                                 #   数据集与 qc.busco_download_path 共用）
   run_omark: false
   executor: local                # local | slurm：嵌套运行 BRAKER4 时使用的 executor（用 slurm profile 时改为 slurm）
   max_jobs: 50                   # 嵌套运行时 SLURM 的并发作业数上限

@@ -253,3 +253,19 @@ def test_merge_function_any_excludes_name_fields(tmp_path):
     st = {l.split("\t")[0]: l.split("\t")[1] for l in o["stats"].read_text().splitlines()[1:]}
     assert st["any"] == "1" and st["Description"] == "2" and st["Preferred_name"] == "1"
     assert "product=Only a description" in o["gff"].read_text()          # still written to the GFF3
+
+
+def test_braker4_inputs_share_busco_downloads(tmp_path):
+    tpl = tmp_path / "config.ini.example"
+    tpl.write_text("[paths]\nsamples_file = samples.csv\n\n[PARAMS]\nskip_busco = 0\n")
+    base = ["--sample", "AB", "--genome", "g.fa", "--masked", "m.fa", "--proteins", "p.fa",
+            "--busco-lineage", "brassicales_odb12", "--template", tpl,
+            "--out-csv", tmp_path / "s.csv", "--out-ini", tmp_path / "c.ini"]
+    r = run("make_braker4_inputs.py", *base, "--busco-download-path", tmp_path / "db" / "busco_downloads")
+    assert r.returncode == 0, r.stderr
+    ini = (tmp_path / "c.ini").read_text()
+    assert f"busco_download_path = {tmp_path / 'db' / 'busco_downloads'}" in ini
+    assert f"compleasm_download_path = {tmp_path / 'db' / 'busco_downloads' / 'lineages'}" in ini
+    assert f"samples_file = {tmp_path / 's.csv'}" in ini and "skip_busco = 1" in ini
+    r = run("make_braker4_inputs.py", *base)                      # without the option: BRAKER4's default path
+    assert r.returncode == 0 and "busco_download_path" not in (tmp_path / "c.ini").read_text()

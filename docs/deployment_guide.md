@@ -104,7 +104,8 @@ bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可�
 | `orthodb/odb12v2_levels.tab.gz`、`odb12v2_level2species.tab.gz` | OrthoDB 分类阶元表：按阶元（如 Brassicales）抽取蛋白子集，减少 BRAKER4 的磁盘占用 | 0.3 MB | — | `orthodb_subset.levels_tab`、`orthodb_subset.level2species_tab` |
 | `omamer/LUCA.h5` | OMAmer 数据库（OMArk 用），运行约需 12 GB 内存 | 9.9 GB | — | `qc.omark_db` |
 | `omamer/Viridiplantae.h5` | 植物 OMAmer 数据库：内存不足 16 GB 时代替 LUCA.h5（约需 2 GB 内存；只能识别植物来源的污染） | 1.5 GB | — | `qc.omark_db` |
-| `busco_downloads/lineages/<lineage>` | BUSCO 数据集（离线模式） | 每个约 0.2 GB | — | `qc.busco_download_path`、`qc.busco_lineages` |
+| `busco_downloads/lineages/<lineage>` | BUSCO 数据集（离线模式）；BRAKER4 的 compleasm 也使用这个目录 | 每个约 0.2 GB | — | `qc.busco_download_path`、`qc.busco_lineages` |
+| `busco_downloads/lineages/` 中的 `eukaryota_odb12`、`placement_files/`、`file_versions.tsv`、`*.done` | BRAKER4 的 compleasm 额外需要的文件（`compleasm` 步骤下载；目录结构与 compleasm 自己下载的一致） | 约 0.2 GB | — | 同上 |
 | `eggnog/` | eggNOG-mapper 5.0.2：`eggnog.db`、`eggnog_proteins.dmnd`、taxa | 12 GB | 约 58 GB | `function.eggnog_data_dir` |
 | `interproscan/interproscan-5.78-109.0/` | InterProScan 完整发行版（含全部成员数据库） | 7.0 GB | 约 30–60 GB | `function.interproscan_dir` |
 | `dfam/dfam40.0.h5` | Dfam 4.0 FamDB 根分区：RepeatMasker 4.2 即使用自定义库（EDTA）也需要；流程会自动把它链接进 conda 环境 | 60 MB | 450 MB | `repeat.dfam_dir` |
@@ -114,6 +115,7 @@ bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可�
 
 ### 5.2 各数据库说明
 
+- **BRAKER4 与 BUSCO 数据集：** BRAKER4 在基因预测中运行 compleasm（BUSCO 基因的 CDS 提示给 AUGUSTUS；TSEBRA 合并后补回丢失的 BUSCO 基因），这与流程的 BUSCO 评估无关、不能关闭（`skip_busco` 只关闭 BRAKER4 自己的 BUSCO 评估）。流程把 `qc.busco_download_path` 写入 BRAKER4 的 `config.ini`，两者共用同一份数据集，并自动挂载进 BRAKER4 的容器；compleasm 每次运行会刷新该目录下的 `file_versions.tsv.hash`，所以目录需要可写。未设置 `qc.busco_download_path` 时，BRAKER4 下载到结果目录 `03_Ab_initio/BRAKER4/busco_downloads`（不再写入 `external/BRAKER4`）。
 - **BUSCO lineage 的选择：** 先在 https://busco-data.ezlab.org/v5/data/file_versions.tsv 里确认名称存在。
   - 例如辣木属于十字花目，应选 `brassicales_odb12`，再加更广的 `embryophyta_odb12`。
   - **odb12 中没有 `eudicots_odb12`**，只有 `eudicots_odb10`。

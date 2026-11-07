@@ -26,6 +26,9 @@ def main():
     ap.add_argument("--threads", default="8")
     ap.add_argument("--mem-mb", default="64000")
     ap.add_argument("--runtime", default="4320")
+    ap.add_argument("--busco-download-path", default="",
+                    help="BUSCO dataset directory shared with this workflow's BUSCO (its lineages/ is compleasm's "
+                         "library); without it BRAKER4 downloads into its own repository (shared_data/)")
     ap.add_argument("--template", default="", help="BRAKER4 repo config.ini used as the base (keeps its [paths]/[containers])")
     ap.add_argument("--out-csv", required=True)
     ap.add_argument("--out-ini", required=True)
@@ -48,6 +51,14 @@ def main():
     ini["PARAMS"].update(min_contig=a.min_contig, skip_busco=a.skip_busco, run_omark=a.run_omark,
                          use_minisplice=a.use_minisplice)
     ini["SLURM_ARGS"].update(cpus_per_task=a.threads, mem_of_node=a.mem_mb, max_runtime=a.runtime)
+    # BUSCO datasets: BRAKER4 runs compleasm for gene prediction (BUSCO CDSpart hints, best_by_compleasm);
+    # share the workflow's BUSCO download directory instead of downloading into the BRAKER4 code directory
+    if a.busco_download_path:
+        if not ini.has_section("paths"):
+            ini.add_section("paths")
+        bdp = os.path.abspath(a.busco_download_path)
+        ini["paths"]["busco_download_path"] = bdp
+        ini["paths"]["compleasm_download_path"] = os.path.join(bdp, "lineages")
     # Point BRAKER4 at our samples.csv if its [paths] section has a samples entry
     if ini.has_section("paths"):
         for k in list(ini["paths"].keys()):
