@@ -17,8 +17,8 @@ def test_english_version_has_same_settings(zh, en):
     assert a == b, f"{zh} and {en} differ: keep both in sync"
 
 
-DOCS = [("README.md", "README.en.md"), ("docs/deployment_guide.md", "docs/deployment_guide.en.md"),
-        ("docs/example_slurm.md", "docs/example_slurm.en.md")]
+DOCS = [("README.zh.md", "README.md"), ("docs/deployment_guide.zh.md", "docs/deployment_guide.md"),
+        ("docs/example_slurm.zh.md", "docs/example_slurm.md")]
 
 
 def structure(path):

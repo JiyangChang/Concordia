@@ -1,164 +1,187 @@
-# Concordia：真核基因组结构与功能注释流程（Snakemake）
+# Concordia: eukaryotic genome structural and functional annotation workflow (Snakemake)
 
-[English](README.en.md) | 中文
+English | [中文](README.zh.md)
 
-Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证据整合成共识注释。输入目标基因组、RNA-seq（短读和/或 PacBio / ONT 长读）以及若干同源物种的基因组和注释，依次完成以下步骤，最后生成一份图文统计报告：
-- 组装质量评估
-- 重复序列注释与软屏蔽
-- RNA 比对
-- 三路基因预测（EviAnn / BRAKER4 / GeMoMa）
-- EVM 整合
-- 与 EviAnn 比较修正
-- 过滤
-- 功能注释
+Concordia (Latin for "agreement") combines RNA, ab initio and homology evidence into a consensus annotation. Given a target genome, RNA-seq (short reads and/or PacBio / ONT long reads) and the genomes and annotations of
+several homologous species, the workflow runs the following steps and ends with an illustrated statistics report:
+- assembly quality assessment
+- repeat annotation and soft-masking
+- RNA alignment
+- three gene prediction routes (EviAnn / BRAKER4 / GeMoMa)
+- EVM integration
+- refinement against EviAnn
+- filtering
+- functional annotation
 
-- 部署指南：`docs/deployment_guide.md`（英文版 `docs/deployment_guide.en.md`）
-- SLURM 集群运行示例：`docs/example_slurm.md`（英文版 `docs/example_slurm.en.md`）
-- 中英文文档（README、部署指南、SLURM 示例、配置模板、profile）内容一致，修改时请同步修改两个版本。
+- Deployment guide: `docs/deployment_guide.md` (Chinese version `docs/deployment_guide.zh.md`)
+- Example for a SLURM cluster: `docs/example_slurm.md` (Chinese version `docs/example_slurm.zh.md`)
+- The Chinese and English documents (README, deployment guide, SLURM example, configuration template, profiles) have the same
+  content; when editing, update both versions.
 
-## 流程概览
+## Overview
 
-| 目录 | 内容 | 主要工具 |
+| Directory | Content | Main tools |
 |---|---|---|
-| `00_Data` | 输入汇集（可按 OrthoDB 阶元抽取 BRAKER4 用的蛋白子集，`orthodb_subset`；未改动的输入用软链接，不复制：基因组、单个同源蛋白/CDS 文件、只用 OrthoDB 时的蛋白库）；序列名超过 13 个字符时统一重命名；同源注释只保留蛋白编码基因；组装质量评估（连续性、BUSCO、端粒、LAI（EDTA 完成后计算），可选 Merqury / FCS-GX）；RNA 原始数据质控 | seqkit, BUSCO, tidk, fastp, NanoPlot |
-| `01_Repeat` | TE 库构建与软屏蔽；TE 组成、Kimura 景观、LTR 插入时间统计 | EDTA, RepeatMasker |
-| `02_RNA` | 短读和长读比对、合并 BAM、StringTie 组装、长读内含子链；EviAnn 注释（只用 RNA 数据；CDS 判定用 SwissProt，未配置时退回同源蛋白） | HISAT2, minimap2, samtools, StringTie2, EviAnn |
-| `03_Ab_initio` | BRAKER4（嵌套 Snakemake；只使用 PacBio 长读） | BRAKER4 |
-| `04_Homology` | 同源投射与蛋白比对：每个同源物种单独运行 GeMoMa 和 miniprot（各自做 BUSCO/OMArk），再合并（GeMoMa GAF；miniprot 拼接）进入 EVM | GeMoMa, miniprot |
-| `05_EVM` | EVM 整合 → 修正（R1–R6）→ TE / 长度过滤 → 按染色体命名（如 `Mol01G000010`）→ 还原序列名 → 导出；各来源的 BUSCO / OMArk / AGAT 评估 | EVidenceModeler 2.1（Rust 版可选）, AGAT, TEsorter |
-| `06_Function` | 结构域、GO、KEGG、COG | InterProScan, eggNOG-mapper |
-| `07_Report` | `annotation_report.html`：每一步都有统计表和图 | Python |
+| `00_Data` | Input collection (optionally a BRAKER4 protein subset by OrthoDB level, `orthodb_subset`; unchanged inputs are symbolic links, not copies: genome, single homolog protein / CDS files, the protein database when only OrthoDB is used); sequences renamed when a name exceeds 13 characters; homolog annotations reduced to protein-coding genes; assembly QC (contiguity, BUSCO, telomeres, LAI (after EDTA), optional Merqury / FCS-GX); raw RNA data QC | seqkit, BUSCO, tidk, fastp, NanoPlot |
+| `01_Repeat` | TE library and soft-masking; TE composition, Kimura landscape, LTR insertion times | EDTA, RepeatMasker |
+| `02_RNA` | Short- and long-read alignment, merged BAMs, StringTie assembly, long-read intron chains; EviAnn annotation (RNA data only; SwissProt for CDS decisions, homolog proteins if not configured) | HISAT2, minimap2, samtools, StringTie2, EviAnn |
+| `03_Ab_initio` | BRAKER4 (nested Snakemake; uses PacBio long reads only) | BRAKER4 |
+| `04_Homology` | Homology projection and protein alignment: GeMoMa and miniprot per homologous species (each with BUSCO / OMArk), then merged (GeMoMa GAF; miniprot concatenated) for EVM | GeMoMa, miniprot |
+| `05_EVM` | EVM integration → refinement (R1–R6) → TE / length filter → chromosome-based names (e.g. `Mol01G000010`) → original sequence names restored → export; BUSCO / OMArk / AGAT of every source | EVidenceModeler 2.1 (Rust version optional), AGAT, TEsorter |
+| `06_Function` | Domains, GO, KEGG, COG | InterProScan, eggNOG-mapper |
+| `07_Report` | `annotation_report.html`: tables and figures for every step | Python |
 
-**流程图：**
-- `docs/workflow_main.png` / `.svg`：主流程（有 RNA-seq），按 00–07 目录分组，不含质控和统计步骤；箭头表示"读取其输出"，所有直接依赖都画出。
-- `docs/workflow_main_norna.png` / `.svg`：无 RNA 模式（`rna.allow_none: true`）的主流程。
-- `docs/workflow_rulegraph.png` / `.svg`：全部步骤（示例配置下 103 个，质控和统计步骤为浅灰色）。
-- 修改规则后重新生成：`bash scripts/make_workflow_diagrams.sh`（需要 snakemake 和 graphviz；用 `tests/config.test.yaml` 示例配置，不需要数据库）。
+**Workflow diagrams:**
+- `docs/workflow_main.png` / `.svg`: main workflow (with RNA-seq) grouped by the 00–07 directories, without QC and statistics steps; an arrow means "reads the output of", and every direct dependency is drawn.
+- `docs/workflow_main_norna.png` / `.svg`: main workflow in no-RNA mode (`rna.allow_none: true`).
+- `docs/workflow_rulegraph.png` / `.svg`: all steps (103 with the example configuration; QC and statistics steps in light grey).
+- Regenerate after changing rules: `bash scripts/make_workflow_diagrams.sh` (needs snakemake and graphviz; uses the example configuration `tests/config.test.yaml`, no databases needed).
 
-**每一步的命令都会先写成脚本：** `<目录>/scripts/<编号>_<rule>[.<通配符>].sh`，然后再执行；日志写入 `<目录>/logs/`，软件版本写入 `<目录>/logs/versions/`。排查问题时，激活脚本头部注明的环境，直接 `bash` 该脚本即可单独重跑这一步。
+**The command of every step is first written to a script:** `<directory>/scripts/<number>_<rule>[.<wildcards>].sh`, which
+is then executed; logs go to `<directory>/logs/`, software versions to `<directory>/logs/versions/`. To debug a step,
+activate the environment named in the script header and run the script with `bash`.
 
-## 快速开始
+## Quick start
 
-结果写在 Snakemake 的工作目录（`-d`）里，不写进流程代码目录。建议流程代码只放一份，每个物种 / 每次分析各用一个目录。
+Results are written to Snakemake's working directory (`-d`), not to the workflow code directory. Keep one copy of the
+code and one directory per species / analysis.
 
 ```bash
-# 1. 获取流程代码（BRAKER4 是 git 子模块，固定在 commit 6a5ee16，--recursive 一并获取）
-git clone --recursive <本流程仓库> concordia      # 已克隆但缺少 BRAKER4 时：git submodule update --init
-A=$PWD/concordia                                  # 流程代码目录，下面用到
-#   （可选）git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
+# 1. Get the workflow code (BRAKER4 is a git submodule pinned to commit 6a5ee16; --recursive fetches it too)
+git clone --recursive <this workflow's repository> concordia      # already cloned without BRAKER4: git submodule update --init
+A=$PWD/concordia                                  # workflow code directory, used below
+#   (optional) git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
 
-# 2. 新建分析目录，放配置和样本表
+# 2. Create the analysis directory with the configuration and sample tables
 mkdir my_species && cd my_species
-cp $A/config/config.example.yaml config.yaml       # 英文注释版：config.example.en.yaml（参数相同）
+cp $A/config/config.example.en.yaml config.yaml    # Chinese comments: config.example.yaml (same parameters)
 cp $A/config/rna_short.example.tsv rna_short.tsv
 cp $A/config/rna_long.example.tsv  rna_long.tsv
 cp $A/config/homologs.example.tsv  homologs.tsv
-#    编辑 config.yaml：genome、样本表（模板默认即 rna_short.tsv、rna_long.tsv、homologs.tsv）、
-#    qc.busco_lineages、qc.omark_db、function.interproscan_dir、function.eggnog_data_dir；相对路径都相对于本目录
+#    edit config.yaml: genome, sample tables (the template already points to rna_short.tsv, rna_long.tsv, homologs.tsv),
+#    qc.busco_lineages, qc.omark_db, function.interproscan_dir, function.eggnog_data_dir; relative paths are relative to this directory
 
-# 3. 运行（-d . 让结果写在本目录的 results/ 下）
+# 3. Run (-d . writes the results to results/ in this directory)
 SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
 $SM --profile $A/profiles/local -n                 # dry-run
-$SM --profile $A/profiles/local                    # 单机；按 workflow/envs 建 conda 环境（~/annotation_conda_envs）
-$SM --profile $A/profiles/slurm                    # SLURM；完整步骤见 docs/example_slurm.md
+$SM --profile $A/profiles/local                    # single machine; conda environments from workflow/envs (~/annotation_conda_envs)
+$SM --profile $A/profiles/slurm                    # SLURM; all steps in docs/example_slurm.md
 
-# 只跑某一部分
-$SM --profile $A/profiles/local data_qc            # 00_Data 评估
-$SM --profile $A/profiles/local --until evm        # 到 EVM 为止
+# Run only a part
+$SM --profile $A/profiles/local data_qc            # 00_Data assessment
+$SM --profile $A/profiles/local --until evm        # up to EVM
 ```
 
-软件清单与版本见 `workflow/envs/README.md`，各环境的版本均已锁定。
+Software list and versions: `workflow/envs/README.md`; the versions of all environments are pinned.
 
-### 分析目录的内容
+### Contents of the analysis directory
 
-运行后，分析目录中的配置里的相对路径、`results/` 和 `.snakemake/`（Snakemake 自己的记录）都在分析目录内，流程代码目录只被读取：
+Relative paths in the configuration, `results/` and `.snakemake/` (Snakemake's own records) all stay in the analysis
+directory; the workflow code directory is only read:
 
 ```
 my_species/
 ├── config.yaml
 ├── rna_short.tsv  rna_long.tsv  homologs.tsv
-├── .snakemake/          Snakemake 的运行记录（断点续跑依赖它）
+├── .snakemake/          Snakemake's run records (needed for resuming)
 └── results/             00_Data ... 07_Report
 ```
 
-## 根据数据自动做出的选择
+## Choices made from the data
 
-| 数据 | BRAKER4 | EviAnn 标签 | EVM 转录本证据 | GeMoMa RNA 证据 | 修正步骤的 RNA 支持 |
+| Data | BRAKER4 | EviAnn tag | EVM transcript evidence | GeMoMa RNA evidence | RNA support in refinement |
 |---|---|---|---|---|---|
-| 短读 + PacBio (+ONT) | dual | bam_mix | 长读 StringTie | 短读 BAM | 长读内含子链 |
-| 短读 + ONT | ETP（不用 ONT） | bam_mix | 长读 StringTie | 短读 BAM | 长读内含子链 |
-| 只有短读 | ETP | bam | 短读 StringTie | 短读 BAM | 短读：剪接 reads（B）+ StringTie 内含子链（A）+ 单外显子（C） |
-| 只有 PacBio | IsoSeq | bam_isoseq | 长读 StringTie | 无（可选长读） | 长读内含子链 |
-| 只有 ONT | EP | bam_isoseq（暂定） | 长读 StringTie | 无（可选长读） | 长读内含子链 |
-| 没有 RNA（需 `rna.allow_none: true`） | EP | 不运行 | 无 | 无 | 无：修正只做 R5 证据检查；过滤以蛋白证据代替 RNA 证据；无 UTR / 可变剪接 / lncRNA |
+| short + PacBio (+ONT) | dual | bam_mix | long-read StringTie | short-read BAM | long-read intron chains |
+| short + ONT | ETP (ONT not used) | bam_mix | long-read StringTie | short-read BAM | long-read intron chains |
+| short reads only | ETP | bam | short-read StringTie | short-read BAM | short reads: junction reads (B) + StringTie intron chain (A) + single exon (C) |
+| PacBio only | IsoSeq | bam_isoseq | long-read StringTie | none (long reads optional) | long-read intron chains |
+| ONT only | EP | bam_isoseq (provisional) | long-read StringTie | none (long reads optional) | long-read intron chains |
+| no RNA (needs `rna.allow_none: true`) | EP | not run | none | none | none: refinement only checks R5 evidence; the filter uses protein evidence instead of RNA; no UTRs / alternative isoforms / lncRNAs |
 
-这些选择的逻辑在 `workflow/lib/common.py`，测试在 `tests/test_common.py`。
+The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 
-## 关键规则
+## Key rules
 
-**EVM 权重调优（`05_EVM/tune`，配置 `evm.tune`）**
-- 在一条序列（默认最长者）上，对各证据来源的候选权重做网格搜索，默认 16 组加配置中的基线。
-- 用原始证据给每组结果打分：P 为多外显子模型的内含子链被长读 / 短读（与修正步骤同一标准）/ miniprot 任一完全支持的比例，R 为证据位点被覆盖的比例，F = 2PR/(P+R)。
-- 默认用 F 最高的权重跑全基因组 EVM。
+**EVM weight tuning (`05_EVM/tune`, configuration `evm.tune`)**
+- Grid search over candidate weights of the evidence sources on one sequence (the longest by default): 16
+  combinations by default plus the configured baseline.
+- Each result is scored with the raw evidence: P = fraction of multi-exon models whose intron chain is fully
+  supported by long reads / short reads (same criteria as refinement) / miniprot (any), R = fraction of evidence
+  loci covered, F = 2PR/(P+R).
+- By default the weights with the highest F are used for the genome-wide EVM run.
 
-**修正（`05_EVM/refine`，`workflow/scripts/refine.py`）**
-- 按 CDS 内含子链比较 EVM 和 EviAnn 模型。
-- 长读支持以"全长 reads"计：Iso-Seq HQ 转录本按 `rna_long.tsv` 的 `counts` 列（isoseq cluster 的 `cluster_report.csv` 或 isoseq collapse 的 `flnc_count.txt`）或表头的 `full_length_coverage` 加权，原始 reads（CCS/FLNC、ONT）按 1 计（`refine.lr_weight_by_coverage`）。长读可以是 FASTA 或 FASTQ。HQ 转录本既无计数文件又无表头标签时支持度会被低估，报告中会提示；此时可将 `refine.min_lr_support` 设为 1。
-- 规则：R1 引入 UTR 和异构体；R2 补入缺失基因；R3 冲突时用有长读支持的模型替换；R4 处理拆分和融合；R5 检查 EVM 独有基因的证据；R6 lncRNA 单独输出。
-- 每个位点的处理写入 `refine_decisions.tsv`。需要人工检查的位点会在报告中单独列出。
+**Refinement (`05_EVM/refine`, `workflow/scripts/refine.py`)**
+- EVM and EviAnn models are compared by their CDS intron chains.
+- Long-read support counts "full-length reads": Iso-Seq HQ transcripts are weighted by the `counts` column of
+  `rna_long.tsv` (isoseq cluster's `cluster_report.csv` or isoseq collapse's `flnc_count.txt`) or by
+  `full_length_coverage` in the header; raw reads (CCS/FLNC, ONT) count 1 (`refine.lr_weight_by_coverage`). Long reads
+  may be FASTA or FASTQ. HQ transcripts with neither a count table nor the header tag are underestimated; the report
+  warns about it, and `refine.min_lr_support` can then be set to 1.
+- Rules: R1 imports UTRs and isoforms; R2 adds missing genes; R3 replaces a conflicting model with the one supported
+  by long reads; R4 handles splits and fusions; R5 checks the evidence of EVM-only genes; R6 lncRNAs are output
+  separately.
+- The decision for every locus is written to `refine_decisions.tsv`. Loci that need manual review are listed
+  separately in the report.
 
-**命名（`05_EVM/final`，`workflow/scripts/rename_genes.py`，配置 `naming`）**
-- 编码基因 `<前缀><染色体号>G<编号>`，如 `Mol01G000010`；lncRNA 用 `L`，如 `Mol01L000010`。
-- 每条染色体内按位置编号，步长 10。
-- 染色体号从原始序列名中取（Chr1 / chr01 / Chromosome_3 / 1）；匹配不到的 scaffold 统一用 `00`；也可以手动指定，如 `ChrM: Mt`。
-- 转录本为 `基因.1`、`.2`（`.1` 为 CDS 最长者）。
-- 主结果 `<前缀>.gff3`（及 cds/pep/cdna）每个基因只保留一个转录本（CDS 最长，等长时取转录本最长）；全部异构体另存为 `<前缀>.all_isoforms.*`。最终结果的统计和评估都基于主结果。
-- 补出 5′/3′ UTR 特征；新旧 ID 对照表为 `id_map.tsv`。
+**Naming (`05_EVM/final`, `workflow/scripts/rename_genes.py`, configuration `naming`)**
+- Coding genes `<prefix><chromosome>G<number>`, e.g. `Mol01G000010`; lncRNAs use `L`, e.g. `Mol01L000010`.
+- Numbered by position within each chromosome, step 10.
+- The chromosome number is taken from the original sequence name (Chr1 / chr01 / Chromosome_3 / 1); unmatched
+  scaffolds share `00`; codes can be set by hand, e.g. `ChrM: Mt`.
+- Transcripts are `gene.1`, `.2` (`.1` = longest CDS).
+- The main result `<prefix>.gff3` (and cds/pep/cdna) keeps one transcript per gene (longest CDS; on ties the longest
+  transcript); all isoforms are kept in `<prefix>.all_isoforms.*`. Statistics and assessments of the final result
+  are based on the main result.
+- 5′/3′ UTR features are added; the old -> new ID table is `id_map.tsv`.
 
-**过滤（`05_EVM/final`）**
-- 基因 CDS 与 TE 重叠超过 `max_te_overlap`（默认 0.5），**并且**没有 RNA 证据，才会被剔除。
-- RNA 证据满足任一条即可：StringTie、来自 EviAnn、BRAKER4 gene_support。
-- CDS 短于 `min_cds_aa` 的模型单独剔除。
-- TEsorter 结果只记录，不作为删除条件。
-- 每个基因的判断写入 `filter_decisions.tsv`。
+**Filtering (`05_EVM/final`)**
+- A gene is removed only if its CDS overlaps TEs by more than `max_te_overlap` (default 0.5) **and** it has no RNA
+  evidence.
+- RNA evidence, any of: StringTie, from EviAnn, BRAKER4 gene_support.
+- Models with a CDS shorter than `min_cds_aa` are removed separately.
+- TEsorter hits are only recorded, never a removal criterion.
+- The decision for every gene is written to `filter_decisions.tsv`.
 
-## 测试
+## Tests
 
 ```bash
-python -m pytest tests                                                     # 单元测试
-snakemake -s workflow/Snakefile --configfile tests/config.test.yaml -n     # 假数据 dry-run
+python -m pytest tests                                                     # unit tests
+snakemake -s workflow/Snakefile --configfile tests/config.test.yaml -n     # dry-run on mock data
 ```
 
-## 许可证
+## License
 
-Concordia 的代码以 [MIT 许可证](LICENSE) 发布（Copyright (c) 2026 Jiyang Chang）。
+Concordia's code is released under the [MIT License](LICENSE) (Copyright (c) 2026 Jiyang Chang).
 
-### 第三方软件与数据库
+### Third-party software and databases
 
-Concordia 只通过命令行调用下列软件，不包含、也不分发它们的代码；它们由 conda 或各自的容器 / 安装包安装，
-各自遵守自己的许可证。使用本流程即同时使用这些软件，发表结果时请一并引用。商业用途请特别注意标 **⚠** 的项。
+Concordia only calls the following software on the command line; it neither contains nor distributes their code.
+They are installed by conda or from their own containers / packages and are covered by their own licenses. Using the
+workflow means using them too; please cite them in publications. Pay particular attention to the items marked **⚠**
+for commercial use.
 
-| 软件 | 许可证（据 bioconda 包信息） |
+| Software | License (from the bioconda package metadata) |
 |---|---|
-| BRAKER4（子模块，`external/BRAKER4`） | MIT |
-| **⚠ GeneMark**（GeneMark-ETP / ES，在 BRAKER4 容器内） | 学术免费；**商业用途需向作者另行取得许可** |
-| AUGUSTUS、ProtHint、TSEBRA、compleasm 等（BRAKER4 容器内） | 各自的开源许可证，见 BRAKER4 文档 |
-| EDTA 2.3.0、LTR_retriever、TIR-Learner、TEsorter | GPL-3.0 |
-| RepeatMasker 4.2.4、RepeatModeler 2.0.9 | Open Software License 2.1 |
+| BRAKER4 (submodule, `external/BRAKER4`) | MIT |
+| **⚠ GeneMark** (GeneMark-ETP / ES, inside the BRAKER4 containers) | free for academic use; **commercial use needs a separate license from the authors** |
+| AUGUSTUS, ProtHint, TSEBRA, compleasm and others (inside the BRAKER4 containers) | their own open-source licenses, see the BRAKER4 documentation |
+| EDTA 2.3.0, LTR_retriever, TIR-Learner, TEsorter | GPL-3.0 |
+| RepeatMasker 4.2.4, RepeatModeler 2.0.9 | Open Software License 2.1 |
 | EviAnn 2.0.7 | GPL-3.0 |
 | HISAT2 2.2.3 | GPL-3.0 |
-| minimap2、samtools、StringTie、miniprot、gffread、seqkit、fastp、NanoPlot、tidk、BUSCO | MIT |
+| minimap2, samtools, StringTie, miniprot, gffread, seqkit, fastp, NanoPlot, tidk, BUSCO | MIT |
 | gffcompare | Artistic License 2.0 |
 | GeMoMa 1.9 | GPL-3.0 |
 | EVidenceModeler 2.1.0 | BSD-3-Clause |
 | AGAT 1.7.0 | GPL-3.0 |
-| OMArk、OMAmer | LGPL-3.0 |
-| **⚠ eggNOG-mapper 2.1.12** | AGPL-3.0（以网络服务形式提供时有额外的开源义务） |
-| diamond、MultiQC | GPL-3.0 |
-| InterProScan | Apache-2.0；部分成员数据库 / 工具（如 SignalP、TMHMM、Phobius）需另行取得许可，默认发行版不含 |
-| NCBI FCS-GX | 公共领域（NCBI） |
+| OMArk, OMAmer | LGPL-3.0 |
+| **⚠ eggNOG-mapper 2.1.12** | AGPL-3.0 (extra source-sharing obligations when offered as a network service) |
+| diamond, MultiQC | GPL-3.0 |
+| InterProScan | Apache-2.0; some member databases / tools (e.g. SignalP, TMHMM, Phobius) need separate licenses and are not in the default distribution |
+| NCBI FCS-GX | public domain (NCBI) |
 | Snakemake | MIT |
 
-数据库：UniProt-SwissProt 为 CC BY 4.0，Dfam 为 CC0；**⚠ KEGG REST 接口仅限学术用途**（`function.kegg_pathway_names`）；
-OrthoDB、OMA、eggNOG、BUSCO 数据集、InterPro、GO 等请遵守各自网站上的使用条款。
-上表根据 2026-11 安装的版本整理，仅供参考，以各软件 / 数据库的官方说明为准。
+Databases: UniProt-SwissProt is CC BY 4.0, Dfam is CC0; **⚠ the KEGG REST API is for academic use only**
+(`function.kegg_pathway_names`); for OrthoDB, OMA, eggNOG, the BUSCO datasets, InterPro, GO and others follow the terms
+of use on their websites. The table reflects the versions installed in 2026-11 and is for information only; the
+official statements of each software / database take precedence.
