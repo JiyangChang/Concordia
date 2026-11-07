@@ -136,7 +136,16 @@ gemoma:
   #   bioconda wrapper (verified for gemoma 1.9: the wrapper adds CLI itself, do not add it): "GeMoMa -Xmx{mem_gb}g"
   #   jar file directly (CLI needed): "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
-  ere_long_reads: false          # experimental: use the long-read BAM for ERE when there are no short reads
+  # RNA evidence for GeMoMa: ERE extracts introns (correct splice sites / exon borders) and coverage (attributes
+  #   tie / tpc) once from a BAM, shared by all homologous species (04_Homology/GeMoMa/ERE/).
+  #   With short reads: always 02_RNA/merged/sr.bam (this option has no effect).
+  #   Without short reads: false = no ERE, GeMoMa uses the homolog proteins only (tie / tpc empty);
+  #                        true  = 02_RNA/merged/lr.bam (PacBio + ONT long reads).
+  #   Experimental: ERE is designed for short reads. Long-read coverage is low and not comparable (tpc), ONT
+  #   alignments can shift splice sites (wrong introns), and the BAM is treated as unstranded. Worth trying with
+  #   PacBio Iso-Seq of reasonable depth; compare BUSCO / structure statistics in 04_Homology/qc/ with and without.
+  #   Leaving it off costs little: long reads are used anyway by BRAKER4 (isoseq), EviAnn and StringTie -> EVM.
+  ere_long_reads: false
 
 evm:
   # standard: EVidenceModeler v2.1.0 (default, supports --repeats / --CPU)

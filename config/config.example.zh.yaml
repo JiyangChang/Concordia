@@ -120,7 +120,15 @@ gemoma:
   #   bioconda 包装脚本（已核实 gemoma 1.9：包装脚本会自动加上 CLI，不要再写 CLI）: "GeMoMa -Xmx{mem_gb}g"
   #   直接用 jar 包时需要写 CLI: "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
-  ere_long_reads: false          # 实验性: 无短读时用长读 BAM 做 ERE
+  # GeMoMa 的 RNA 证据：ERE 从 BAM 中一次性提取内含子（帮助选对剪接位点和外显子边界）和覆盖度（计算属性
+  #   tie / tpc），所有同源物种共用（04_Homology/GeMoMa/ERE/）。
+  #   有短读：总是用 02_RNA/merged/sr.bam（本选项不起作用）。
+  #   无短读：false = 不做 ERE，GeMoMa 只靠同源蛋白预测（tie / tpc 为空）；
+  #           true  = 用 02_RNA/merged/lr.bam（PacBio + ONT 长读）。
+  #   实验性：ERE 是为短读设计的。长读覆盖度低、数值与短读不可比（tpc）；ONT 比对的剪接位点可能偏移（错误内含子）；
+  #   BAM 按无链特异处理。深度尚可的 PacBio Iso-Seq 可以一试，开关各跑一次比较 04_Homology/qc/ 中的 BUSCO 和结构统计。
+  #   关闭的代价不大：长读已被 BRAKER4（isoseq）、EviAnn 和 StringTie → EVM 使用。
+  ere_long_reads: false
 
 evm:
   # standard: EVidenceModeler v2.1.0 (默认，支持 --repeats / --CPU)
