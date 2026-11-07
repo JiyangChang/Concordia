@@ -269,3 +269,45 @@ def test_braker4_inputs_share_busco_downloads(tmp_path):
     assert f"samples_file = {tmp_path / 's.csv'}" in ini and "skip_busco = 1" in ini
     r = run("make_braker4_inputs.py", *base)                      # without the option: BRAKER4's default path
     assert r.returncode == 0 and "busco_download_path" not in (tmp_path / "c.ini").read_text()
+
+
+IPS_GFF = """##gff-version 3
+##feature-ontology http://song.cvs.sourceforge.net/viewvc/song/ontology/sofa.obo?revision=1.269
+##interproscan-version 5.78-109.0
+##sequence-region {p} 1 100
+{p}\t.\tpolypeptide\t1\t100\t.\t+\t.\tmd5=x;ID={p}
+{p}\tPfam\tprotein_match\t5\t60\t1e-10\t+\t.\tName=PF00001;Target={p} 5 60
+##FASTA
+>{p}
+MKV
+LLA
+"""
+
+
+def test_merge_interproscan(tmp_path):
+    t1, t2, t3 = tmp_path / "c1.tsv", tmp_path / "c2.tsv", tmp_path / "c3.tsv"
+    g1, g2, g3 = tmp_path / "c1.gff3", tmp_path / "c2.gff3", tmp_path / "c3.gff3"
+    t1.write_text("p1\tmd5\t100\tPfam\tPF00001\n")
+    t2.write_text("p2\tmd5\t90\tPfam\tPF00002")            # no final newline
+    t3.write_text("")                                      # empty chunk (no proteins)
+    g1.write_text(IPS_GFF.format(p="p1"))
+    g2.write_text(IPS_GFF.format(p="p2"))
+    g3.write_text("")
+    ot, og = tmp_path / "all.tsv", tmp_path / "all.gff3"
+    r = run("merge_interproscan.py", "--tsv", t1, t2, t3, "--gff", g1, g2, g3, "--out-tsv", ot, "--out-gff", og)
+    assert r.returncode == 0, r.stderr
+    assert ot.read_text() == "p1\tmd5\t100\tPfam\tPF00001\np2\tmd5\t90\tPfam\tPF00002\n"
+    lines = og.read_text().splitlines()
+    assert lines[0] == "##gff-version 3"
+    assert sum(l.startswith("##gff-version") for l in lines) == 1
+    assert sum(l.startswith("##interproscan-version") for l in lines) == 1
+    assert lines.count("##FASTA") == 1
+    fasta = lines[lines.index("##FASTA") + 1:]
+    assert fasta == [">p1", "MKV", "LLA", ">p2", "MKV", "LLA"]
+    body = lines[:lines.index("##FASTA")]
+    assert [l for l in body if l.startswith("##sequence-region")] == ["##sequence-region p1 1 100", "##sequence-region p2 1 100"]
+    assert sum(not l.startswith("#") for l in body) == 4
+    # all chunks empty: valid empty GFF3
+    r = run("merge_interproscan.py", "--tsv", t3, "--gff", g3, "--out-tsv", ot, "--out-gff", og)
+    assert r.returncode == 0, r.stderr
+    assert ot.read_text() == "" and og.read_text() == "##gff-version 3\n"

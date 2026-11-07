@@ -26,7 +26,7 @@ Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证�
 | `03_Ab_initio` | BRAKER4（嵌套 Snakemake；只使用 PacBio 长读） | BRAKER4 |
 | `04_Homology` | 同源投射与蛋白比对：每个同源物种单独运行 GeMoMa 和 miniprot（各自做 BUSCO/OMArk），再合并（GeMoMa GAF；miniprot 拼接）进入 EVM | GeMoMa, miniprot |
 | `05_EVM` | EVM 整合 → 修正（R1–R6）→ TE / 长度过滤 → 按染色体命名（如 `Mol01G000010`）→ 还原序列名 → 导出；各来源的 BUSCO / OMArk / AGAT 评估 | EVidenceModeler 2.1（Rust 版可选）, AGAT, TEsorter |
-| `06_Function` | 结构域、GO、KEGG、COG | InterProScan, eggNOG-mapper |
+| `06_Function` | 结构域、GO、KEGG、COG（完整 InterProScan 结果 `interproscan/<前缀>.interproscan.{tsv,gff3}`、eggNOG `eggnog/`、合并表 `merged/`） | InterProScan, eggNOG-mapper |
 | `07_Report` | `annotation_report.html`：每一步都有统计表和图 | Python |
 
 **流程图：**

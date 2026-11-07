@@ -192,7 +192,7 @@ tail -f logs/snakemake_<jobid>.log               # 进度
 - **续跑**：中途失败或主进程超时后，重新 `sbatch run_annotation.sbatch`，已完成的步骤会跳过。
 - **排查某一步**：看 `results/<步骤目录>/logs/*.err` 和 `.snakemake/slurm_logs/`；要单独重跑，用 `srun` 申请资源，
   激活脚本开头注明的环境后执行 `bash results/<步骤目录>/scripts/<脚本>.sh`。
-- **结果**：最终注释 `results/05_EVM/final/`，功能注释 `results/06_Function/merged/`，报告 `results/07_Report/annotation_report.html`。
+- **结果**：最终注释 `results/05_EVM/final/`，功能注释 `results/06_Function/merged/`（完整 InterProScan 结果在 `06_Function/interproscan/`，eggNOG 在 `06_Function/eggnog/`），报告 `results/07_Report/annotation_report.html`。
 
 ## 9. BRAKER4 的 `executor`
 

@@ -9,7 +9,8 @@ rule func_split:
     input:
         FINAL_LONGEST_PEP,
     output:
-        expand(O("06_Function/interproscan/chunks/chunk_{chunk}.faa"), chunk=CHUNKS),
+        # temporary: deleted once every InterProScan chunk has run
+        temp(expand(O("06_Function/interproscan/chunks/chunk_{chunk}.faa"), chunk=CHUNKS)),
     params:
         script=script("06_Function", "01_split"),
     log:
@@ -56,7 +57,10 @@ rule interproscan:
         setup=rules.interproscan_setup.output,
         faa=O("06_Function/interproscan/chunks/chunk_{chunk}.faa"),
     output:
-        O("06_Function/interproscan/chunk_{chunk}.tsv"),
+        # both declared (so a re-run deletes old files first; InterProScan would otherwise write chunk_*_1.gff3)
+        # and temporary: deleted once interproscan_merge has combined them
+        tsv=temp(O("06_Function/interproscan/chunk_{chunk}.tsv")),
+        gff=temp(O("06_Function/interproscan/chunk_{chunk}.gff3")),
     params:
         script=script("06_Function", "02_interproscan.{chunk}"),
         exe=os.path.join(str(FN.get("interproscan_dir", "")), "interproscan.sh"),
@@ -73,12 +77,35 @@ rule interproscan:
         "../envs/function.yaml"
     shell:
         SH("""
-        if [ ! -s {input.faa} ]; then : > {output}; exit 0; fi
+        if [ ! -s {input.faa} ]; then : > {output.tsv}; : > {output.gff}; exit 0; fi
+        rm -f {params.base}.tsv {params.base}.gff3 {params.base}_*.gff3 {params.base}_*.tsv
         mkdir -p {params.tmp}
         {params.exe} -i {input.faa} -f tsv,gff3 -goterms -pa -cpu {threads} -dp {params.appl} \\
                      -b {params.base} -T {params.tmp}
         rm -rf {params.tmp}
         """, env="function", versions=f"{IPS_DIR}/interproscan.sh -version 2>/dev/null | head -n 3")   # not on PATH: use the configured release
+
+
+IPS_TSV = O("06_Function/interproscan", f"{PREFIX}.interproscan.tsv")
+IPS_GFF = O("06_Function/interproscan", f"{PREFIX}.interproscan.gff3")
+
+
+rule interproscan_merge:
+    """Complete InterProScan result (all member databases, positions, E-values) as one TSV and one GFF3;
+    the per-chunk files are temporary and deleted afterwards."""
+    input:
+        tsv=expand(O("06_Function/interproscan/chunk_{chunk}.tsv"), chunk=CHUNKS),
+        gff=expand(O("06_Function/interproscan/chunk_{chunk}.gff3"), chunk=CHUNKS),
+    output:
+        tsv=IPS_TSV,
+        gff=IPS_GFF,
+    params:
+        script=script("06_Function", "02b_interproscan_merge"),
+    log:
+        **logs("06_Function", "02b_interproscan_merge"),
+    shell:
+        SH(PY("merge_interproscan.py") + """ --tsv {input.tsv} --gff {input.gff} --out-tsv {output.tsv} --out-gff {output.gff}
+        """)
 
 
 rule eggnog:
@@ -109,7 +136,7 @@ rule eggnog:
 rule merge_function:
     input:
         gff=FINAL_GFF,
-        ipr=expand(O("06_Function/interproscan/chunk_{chunk}.tsv"), chunk=CHUNKS),
+        ipr=IPS_TSV,
         egg=rules.eggnog.output,
     output:
         gff=O("06_Function/merged", f"{PREFIX}.func.gff3"),
@@ -166,7 +193,7 @@ rule function_stats:
     """Gene-level statistics of the functional annotation, for 07_Report."""
     input:
         gff=FINAL_GFF,
-        ipr=expand(O("06_Function/interproscan/chunk_{chunk}.tsv"), chunk=CHUNKS),
+        ipr=IPS_TSV,
         egg=rules.eggnog.output,
         kegg_names=rules.kegg_pathway_names.output,
     output:

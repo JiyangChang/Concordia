@@ -237,7 +237,8 @@ function:
   interproscan_appl: null        # null = all member databases; or "Pfam,PANTHER,..."
   eggnog_data_dir: "/path/to/eggnog_data"
   eggnog_tax_scope: "auto"
-  chunks: 20
+  chunks: 20                     # InterProScan runs in this many parallel parts; merged afterwards into
+                                 #   06_Function/interproscan/<prefix>.interproscan.{tsv,gff3} (parts deleted)
   go_obo: null                   # optional: GO ontology go-basic.obo (https://purl.obolibrary.org/obo/go/go-basic.obo);
                                  #   the report then shows GO names and BP/MF/CC statistics
   report_top: 20                 # number of top Pfam / InterPro / GO / KEGG pathways listed in the report

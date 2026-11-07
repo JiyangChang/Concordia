@@ -208,7 +208,8 @@ function:
   interproscan_appl: null        # null = 全部数据库；或 "Pfam,PANTHER,..."
   eggnog_data_dir: "/path/to/eggnog_data"
   eggnog_tax_scope: "auto"
-  chunks: 20
+  chunks: 20                     # InterProScan 分成这么多块并行运行；完成后合并为
+                                 #       06_Function/interproscan/<前缀>.interproscan.{tsv,gff3}（分块文件删除）
   go_obo: null                   # 可选：GO 本体文件 go-basic.obo（https://purl.obolibrary.org/obo/go/go-basic.obo），
                                  #       提供后报告中显示 GO 名称和 BP/MF/CC 分类统计
   report_top: 20                 # 报告中 Pfam / InterPro / GO / KEGG 通路列出前 N 个

@@ -199,7 +199,8 @@ need to be set up in this script.
 - **Debugging a step**: read `results/<step directory>/logs/*.err` and `.snakemake/slurm_logs/`; to re-run it alone,
   get resources with `srun`, activate the environment named at the top of the script, and run
   `bash results/<step directory>/scripts/<script>.sh`.
-- **Results**: final annotation `results/05_EVM/final/`, functional annotation `results/06_Function/merged/`, report
+- **Results**: final annotation `results/05_EVM/final/`, functional annotation `results/06_Function/merged/`
+  (complete InterProScan result in `06_Function/interproscan/`, eggNOG in `06_Function/eggnog/`), report
   `results/07_Report/annotation_report.html`.
 
 ## 9. BRAKER4 `executor`

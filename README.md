@@ -28,7 +28,7 @@ several homologous species, the workflow runs the following steps and ends with 
 | `03_Ab_initio` | BRAKER4 (nested Snakemake; uses PacBio long reads only) | BRAKER4 |
 | `04_Homology` | Homology projection and protein alignment: GeMoMa and miniprot per homologous species (each with BUSCO / OMArk), then merged (GeMoMa GAF; miniprot concatenated) for EVM | GeMoMa, miniprot |
 | `05_EVM` | EVM integration → refinement (R1–R6) → TE / length filter → chromosome-based names (e.g. `Mol01G000010`) → original sequence names restored → export; BUSCO / OMArk / AGAT of every source | EVidenceModeler 2.1 (Rust version optional), AGAT, TEsorter |
-| `06_Function` | Domains, GO, KEGG, COG | InterProScan, eggNOG-mapper |
+| `06_Function` | Domains, GO, KEGG, COG (complete InterProScan result `interproscan/<prefix>.interproscan.{tsv,gff3}`, eggNOG `eggnog/`, combined table `merged/`) | InterProScan, eggNOG-mapper |
 | `07_Report` | `annotation_report.html`: tables and figures for every step | Python |
 
 **Workflow diagrams:**
