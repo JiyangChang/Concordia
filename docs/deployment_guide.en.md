@@ -198,6 +198,7 @@ snakemake ... data_qc
 - **Resuming:** run the same command again.
 - **Debugging a step:** read the `.err` in `<step directory>/logs/`, activate the environment named in the script
   header, and re-run that step alone with `bash <step directory>/scripts/<number>_<rule>.sh`.
+- **Complete example:** all steps from setup to submission on a SLURM cluster are in `example_slurm.en.md`.
 - **Results:** `<outdir>/05_EVM/final/` holds the final annotation, `<outdir>/07_Report/annotation_report.html` the
   statistics report.
 

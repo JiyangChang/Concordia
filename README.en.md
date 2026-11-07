@@ -14,7 +14,8 @@ several homologous species, the workflow runs the following steps and ends with 
 - functional annotation
 
 - Deployment guide: `docs/deployment_guide.en.md` (Chinese version `docs/deployment_guide.md`)
-- The Chinese and English documents (README, deployment guide, configuration template, profiles) have the same
+- Example for a SLURM cluster: `docs/example_slurm.en.md` (Chinese version `docs/example_slurm.md`)
+- The Chinese and English documents (README, deployment guide, SLURM example, configuration template, profiles) have the same
   content; when editing, update both versions.
 
 ## Overview

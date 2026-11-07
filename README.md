@@ -13,7 +13,8 @@
 - 功能注释
 
 - 部署指南：`docs/deployment_guide.md`（英文版 `docs/deployment_guide.en.md`）
-- 中英文文档（README、部署指南、配置模板、profile）内容一致，修改时请同步修改两个版本。
+- SLURM 集群运行示例：`docs/example_slurm.md`（英文版 `docs/example_slurm.en.md`）
+- 中英文文档（README、部署指南、SLURM 示例、配置模板、profile）内容一致，修改时请同步修改两个版本。
 
 ## 流程概览
 
