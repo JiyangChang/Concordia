@@ -39,45 +39,46 @@
 
 ## 快速开始
 
+结果写在 Snakemake 的工作目录（`-d`）里，不写进流程代码目录。建议流程代码只放一份，每个物种 / 每次分析各用一个目录。
+
 ```bash
-# 1. 配置
-cp config/config.example.yaml config/config.yaml        # 英文注释版：config/config.example.en.yaml（参数相同）
-#    必填：genome、rna.short / rna.long、homologs、qc.busco_lineages、qc.omark_db
-#    功能注释：function.interproscan_dir、function.eggnog_data_dir
-#    样本表：从 config/*.example.tsv 复制为 config/rna_short.tsv、rna_long.tsv、homologs.tsv 再填写
+# 1. 获取流程代码（BRAKER4 是 git 子模块，固定在 commit 6a5ee16，--recursive 一并获取）
+git clone --recursive <本流程仓库> annotation      # 已克隆但缺少 BRAKER4 时：git submodule update --init
+A=$PWD/annotation                                  # 流程代码目录，下面用到
+#   （可选）git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
 
-# 2. 外部代码
-#   BRAKER4 是 git 子模块（external/BRAKER4，固定在 commit 6a5ee16），克隆本仓库时一并获取：
-#   git clone --recursive <本流程仓库> annotation   （已克隆但缺少 BRAKER4 时：git submodule update --init）
-#   （可选）git clone https://github.com/hyphaltip/EVidenceModeler_rust external/EVidenceModeler_rust
+# 2. 新建分析目录，放配置和样本表
+mkdir my_species && cd my_species
+cp $A/config/config.example.yaml config.yaml       # 英文注释版：config.example.en.yaml（参数相同）
+cp $A/config/rna_short.example.tsv rna_short.tsv
+cp $A/config/rna_long.example.tsv  rna_long.tsv
+cp $A/config/homologs.example.tsv  homologs.tsv
+#    编辑 config.yaml：genome、样本表（模板默认即 rna_short.tsv、rna_long.tsv、homologs.tsv）、
+#    qc.busco_lineages、qc.omark_db、function.interproscan_dir、function.eggnog_data_dir；相对路径都相对于本目录
 
-# 3. 运行
-snakemake --configfile config/config.yaml --profile profiles/local -n                     # dry-run
-snakemake --configfile config/config.yaml --profile profiles/local                        # 单机；按 workflow/envs 建 conda 环境（~/annotation_conda_envs）
-snakemake --configfile config/config.yaml --profile profiles/slurm                        # SLURM（另设 braker4.executor: slurm）
+# 3. 运行（-d . 让结果写在本目录的 results/ 下）
+SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
+$SM --profile $A/profiles/local -n                 # dry-run
+$SM --profile $A/profiles/local                    # 单机；按 workflow/envs 建 conda 环境（~/annotation_conda_envs）
+$SM --profile $A/profiles/slurm                    # SLURM；完整步骤见 docs/example_slurm.md
 
 # 只跑某一部分
-snakemake --configfile config/config.yaml --profile profiles/local data_qc         # 00_Data 评估
-snakemake --configfile config/config.yaml --profile profiles/local --until evm     # 到 EVM 为止
+$SM --profile $A/profiles/local data_qc            # 00_Data 评估
+$SM --profile $A/profiles/local --until evm        # 到 EVM 为止
 ```
 
 软件清单与版本见 `workflow/envs/README.md`，各环境的版本均已锁定。
 
-### 在独立的分析目录中运行
+### 分析目录的内容
 
-建议把流程代码和每次分析分开：流程代码只放一份，每个物种 / 每次分析各用一个目录，放配置、样本表和结果。
-用 `-d` 把 Snakemake 的工作目录设为分析目录，配置里的相对路径、`results/` 和 `.snakemake/` 都在分析目录内，不会写进代码目录：
+运行后，分析目录中的配置里的相对路径、`results/` 和 `.snakemake/`（Snakemake 自己的记录）都在分析目录内，流程代码目录只被读取：
 
 ```
 my_species/
-├── config.yaml          从 config/config.example.yaml 复制后修改
+├── config.yaml
 ├── rna_short.tsv  rna_long.tsv  homologs.tsv
-└── results/             运行后生成（00_Data ... 07_Report）
-```
-
-```bash
-snakemake -s /path/to/annotation/workflow/Snakefile -d my_species --configfile my_species/config.yaml \
-          --profile /path/to/annotation/profiles/local -n      # 去掉 -n 即正式运行
+├── .snakemake/          Snakemake 的运行记录（断点续跑依赖它）
+└── results/             00_Data ... 07_Report
 ```
 
 ## 根据数据自动做出的选择

@@ -1,5 +1,5 @@
 # SLURM 集群 profile；英文版：config.en.yaml（参数相同，修改时请同步）
-#   运行：snakemake --configfile config/config.yaml --profile profiles/slurm
+#   运行：snakemake -s <代码目录>/workflow/Snakefile -d <分析目录> --configfile <分析目录>/config.yaml --profile <代码目录>/profiles/slurm
 #   需要 snakemake-executor-plugin-slurm 2.6.0（装在启动流程的环境中；嵌套运行的 BRAKER4 也使用它）
 snakefile: workflow/Snakefile
 executor: slurm
@@ -26,7 +26,7 @@ software-deployment-method: [conda]
 #   2. 空间约 15 GB（默认 7 个环境，启用 Merqury 等可选功能时会多建几个）；
 #   3. 多个项目/多次运行可以共用：环境按 yaml 内容和该目录真实路径的哈希命名，yaml 不变就直接复用，不会重复安装。
 # 计算节点不能联网时，先在登录节点建好全部环境：
-#   snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only
+#   snakemake -s <代码目录>/workflow/Snakefile -d <分析目录> --configfile <分析目录>/config.yaml --profile <代码目录>/profiles/slurm --conda-create-envs-only
 # 不设置时默认放在 <工作目录>/.snakemake/conda，每个结果目录各装一份。
 conda-prefix: ~/annotation_conda_envs   # 家目录在多数集群上是共享的；家目录空间不足时改到 /shared/... 下
 

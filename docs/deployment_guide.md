@@ -69,7 +69,8 @@ conda activate annotation
 # 各步骤的软件环境由 Snakemake 按 workflow/envs/*.yaml 自动建立（版本已锁定）。
 # 环境建在 profiles/slurm/config.yaml 的 conda-prefix 目录（默认 ~/annotation_conda_envs，约 15–20 GB）；
 # 计算节点不能联网时，先在登录节点预先建好：
-snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only
+cd my_species && snakemake -s /path/to/annotation/workflow/Snakefile -d . --configfile config.yaml \
+    --profile /path/to/annotation/profiles/slurm --conda-create-envs-only
 ```
 
 `profiles/slurm/config.yaml` 中需要按集群修改的项：
@@ -145,7 +146,8 @@ bash scripts/download_databases.sh /path/to/databases --limit-rate 30m   # 可�
 ## 6. 配置
 
 ```bash
-cp config/config.example.yaml config/config.yaml
+mkdir my_species && cd my_species           # 分析目录：配置、样本表和结果都在这里，代码目录只被读取
+cp /path/to/annotation/config/config.example.yaml config.yaml
 ```
 
 必填项：
@@ -161,21 +163,23 @@ cp config/config.example.yaml config/config.yaml
 | `braker4.executor` | 在集群上设为 `slurm`，BRAKER4 的子任务也会提交到 SLURM |
 | `braker4.bind` | 容器需要访问的路径（数据库、结果目录所在的挂载点） |
 
-示例：仓库中的 `tests/config.test.yaml`（模拟数据，用于 dry-run）；分析目录的组织方式见 README"在独立的分析目录中运行"。
+示例：仓库中的 `tests/config.test.yaml`（模拟数据，用于 dry-run）；分析目录的组织方式见 README"快速开始"。
 
 ## 7. 运行
 
 ```bash
 conda activate annotation
+cd my_species; A=/path/to/annotation
+SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
 # 1) 检查
-snakemake --configfile config/config.yaml --profile profiles/slurm -n
-# 2) 运行（SLURM）
-snakemake --configfile config/config.yaml --profile profiles/slurm
+$SM --profile $A/profiles/slurm -n
+# 2) 运行（SLURM；完整示例见 example_slurm.md）
+$SM --profile $A/profiles/slurm
 # 单机
-snakemake --configfile config/config.yaml --profile profiles/local     # 环境同样建在 ~/annotation_conda_envs，可与 SLURM 共用
+$SM --profile $A/profiles/local       # 环境同样建在 ~/annotation_conda_envs，可与 SLURM 共用
 # 只跑到某一步
-snakemake ... --until evm
-snakemake ... data_qc
+$SM --profile $A/profiles/local --until evm
+$SM --profile $A/profiles/local data_qc
 ```
 
 - **断点续跑：** 重新运行同一命令即可。

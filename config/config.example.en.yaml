@@ -42,8 +42,8 @@ assembly_qc:
     # Report only: no sequence is removed automatically; cleaning is up to the user
 
 rna:
-  short: "config/rna_short.tsv"   # copy from config/rna_short.example.tsv and fill in
-  long:  "config/rna_long.tsv"    # copy from config/rna_long.example.tsv and fill in
+  short: "rna_short.tsv"          # relative paths are relative to the working (analysis) directory; copy from <code dir>/config/rna_short.example.tsv
+  long:  "rna_long.tsv"           # copy from <code dir>/config/rna_long.example.tsv and fill in
   # platform values: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
   #   PacBio: minimap2 -ax splice:hq -uf; used by BRAKER4 (isoseq_bam), EviAnn, EVM
   #   ONT   : minimap2 -ax splice (drna adds -uf -k14); not used by BRAKER4, only by EviAnn, EVM, refine
@@ -55,7 +55,7 @@ rna:
                                  #   No UTRs, alternative isoforms or lncRNAs. With false, missing RNA samples are an error
                                  #   (protects against a forgotten sample table).
 
-homologs: "config/homologs.tsv"  # copy from config/homologs.example.tsv and fill in
+homologs: "homologs.tsv"         # copy from <code dir>/config/homologs.example.tsv and fill in
 homolog_protein_coding_only: true   # keep only protein-coding genes of the homologs (drop TE genes, pseudogenes,
                                     #   ncRNA genes and transcripts without CDS)
 orthodb_proteins: "db/Viridiplantae.fa"   # OrthoDB proteins of a BRAKER partition (.gz allowed); used by BRAKER4 only

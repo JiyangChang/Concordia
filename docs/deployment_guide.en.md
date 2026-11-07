@@ -73,7 +73,8 @@ conda activate annotation
 # The software environment of each step is built by Snakemake from workflow/envs/*.yaml (pinned versions).
 # Environments go to the conda-prefix directory of profiles/slurm/config.yaml (default ~/annotation_conda_envs,
 # about 15-20 GB); when compute nodes have no internet access, build them on the login node first:
-snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only
+cd my_species && snakemake -s /path/to/annotation/workflow/Snakefile -d . --configfile config.yaml \
+    --profile /path/to/annotation/profiles/slurm --conda-create-envs-only
 ```
 
 Settings in `profiles/slurm/config.yaml` to adapt to the cluster:
@@ -161,7 +162,8 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 ## 6. Configuration
 
 ```bash
-cp config/config.example.en.yaml config/config.yaml     # or the Chinese-commented config/config.example.yaml
+mkdir my_species && cd my_species           # analysis directory: configuration, sample tables and results; the code directory is only read
+cp /path/to/annotation/config/config.example.en.yaml config.yaml
 ```
 
 Required settings:
@@ -178,21 +180,23 @@ Required settings:
 | `braker4.bind` | paths the containers need (mount points of the databases and the result directory) |
 
 Example: `tests/config.test.yaml` in the repository (mock data, for dry-runs); for organising analysis directories see
-"Running in a separate analysis directory" in the README.
+"Quick start" in the README.
 
 ## 7. Running
 
 ```bash
 conda activate annotation
+cd my_species; A=/path/to/annotation
+SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
 # 1) check
-snakemake --configfile config/config.yaml --profile profiles/slurm -n
-# 2) run (SLURM)
-snakemake --configfile config/config.yaml --profile profiles/slurm
+$SM --profile $A/profiles/slurm -n
+# 2) run (SLURM; complete example in example_slurm.en.md)
+$SM --profile $A/profiles/slurm
 # single machine
-snakemake --configfile config/config.yaml --profile profiles/local     # environments also in ~/annotation_conda_envs, shared with SLURM
+$SM --profile $A/profiles/local       # environments also in ~/annotation_conda_envs, shared with SLURM
 # run up to a step
-snakemake ... --until evm
-snakemake ... data_qc
+$SM --profile $A/profiles/local --until evm
+$SM --profile $A/profiles/local data_qc
 ```
 
 - **Resuming:** run the same command again.

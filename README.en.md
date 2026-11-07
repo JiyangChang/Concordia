@@ -43,46 +43,48 @@ activate the environment named in the script header and run the script with `bas
 
 ## Quick start
 
+Results are written to Snakemake's working directory (`-d`), not to the workflow code directory. Keep one copy of the
+code and one directory per species / analysis.
+
 ```bash
-# 1. Configuration
-cp config/config.example.en.yaml config/config.yaml     # Chinese comments: config/config.example.yaml (same parameters)
-#    required: genome, rna.short / rna.long, homologs, qc.busco_lineages, qc.omark_db
-#    functional annotation: function.interproscan_dir, function.eggnog_data_dir
-#    sample tables: copy config/*.example.tsv to config/rna_short.tsv, rna_long.tsv, homologs.tsv and fill them in
+# 1. Get the workflow code (BRAKER4 is a git submodule pinned to commit 6a5ee16; --recursive fetches it too)
+git clone --recursive <this workflow's repository> annotation      # already cloned without BRAKER4: git submodule update --init
+A=$PWD/annotation                                  # workflow code directory, used below
+#   (optional) git clone https://github.com/hyphaltip/EVidenceModeler_rust $A/external/EVidenceModeler_rust
 
-# 2. External code
-#   BRAKER4 is a git submodule (external/BRAKER4, pinned to commit 6a5ee16), fetched together with this repository:
-#   git clone --recursive <this workflow's repository> annotation   (already cloned without BRAKER4: git submodule update --init)
-#   (optional) git clone https://github.com/hyphaltip/EVidenceModeler_rust external/EVidenceModeler_rust
+# 2. Create the analysis directory with the configuration and sample tables
+mkdir my_species && cd my_species
+cp $A/config/config.example.en.yaml config.yaml    # Chinese comments: config.example.yaml (same parameters)
+cp $A/config/rna_short.example.tsv rna_short.tsv
+cp $A/config/rna_long.example.tsv  rna_long.tsv
+cp $A/config/homologs.example.tsv  homologs.tsv
+#    edit config.yaml: genome, sample tables (the template already points to rna_short.tsv, rna_long.tsv, homologs.tsv),
+#    qc.busco_lineages, qc.omark_db, function.interproscan_dir, function.eggnog_data_dir; relative paths are relative to this directory
 
-# 3. Run
-snakemake --configfile config/config.yaml --profile profiles/local -n                     # dry-run
-snakemake --configfile config/config.yaml --profile profiles/local                        # single machine; conda environments from workflow/envs (~/annotation_conda_envs)
-snakemake --configfile config/config.yaml --profile profiles/slurm                        # SLURM (also set braker4.executor: slurm)
+# 3. Run (-d . writes the results to results/ in this directory)
+SM="snakemake -s $A/workflow/Snakefile -d . --configfile config.yaml"
+$SM --profile $A/profiles/local -n                 # dry-run
+$SM --profile $A/profiles/local                    # single machine; conda environments from workflow/envs (~/annotation_conda_envs)
+$SM --profile $A/profiles/slurm                    # SLURM; all steps in docs/example_slurm.en.md
 
 # Run only a part
-snakemake --configfile config/config.yaml --profile profiles/local data_qc         # 00_Data assessment
-snakemake --configfile config/config.yaml --profile profiles/local --until evm     # up to EVM
+$SM --profile $A/profiles/local data_qc            # 00_Data assessment
+$SM --profile $A/profiles/local --until evm        # up to EVM
 ```
 
 Software list and versions: `workflow/envs/README.md`; the versions of all environments are pinned.
 
-### Running in a separate analysis directory
+### Contents of the analysis directory
 
-Keep the workflow code and each analysis apart: one copy of the code, and one directory per species / analysis with
-its configuration, sample tables and results. With `-d`, Snakemake's working directory is the analysis directory:
-relative paths in the configuration, `results/` and `.snakemake/` all stay there and never touch the code directory:
+Relative paths in the configuration, `results/` and `.snakemake/` (Snakemake's own records) all stay in the analysis
+directory; the workflow code directory is only read:
 
 ```
 my_species/
-├── config.yaml          copied from config/config.example.en.yaml and edited
+├── config.yaml
 ├── rna_short.tsv  rna_long.tsv  homologs.tsv
-└── results/             created by the run (00_Data ... 07_Report)
-```
-
-```bash
-snakemake -s /path/to/annotation/workflow/Snakefile -d my_species --configfile my_species/config.yaml \
-          --profile /path/to/annotation/profiles/local -n      # drop -n for the real run
+├── .snakemake/          Snakemake's run records (needed for resuming)
+└── results/             00_Data ... 07_Report
 ```
 
 ## Choices made from the data

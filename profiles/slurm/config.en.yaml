@@ -1,6 +1,6 @@
 # SLURM cluster profile; Chinese version: config.yaml (same settings - keep both in sync).
 # Snakemake reads config.yaml; to use this file, copy it over config.yaml.
-#   Run: snakemake --configfile config/config.yaml --profile profiles/slurm
+#   Run: snakemake -s <code dir>/workflow/Snakefile -d <analysis dir> --configfile <analysis dir>/config.yaml --profile <code dir>/profiles/slurm
 #   Requires snakemake-executor-plugin-slurm 2.6.0 (in the environment that runs the workflow; also used by the nested BRAKER4 run)
 snakefile: workflow/Snakefile
 executor: slurm
@@ -31,7 +31,7 @@ software-deployment-method: [conda]
 #   3. can be shared by projects and runs: environments are named by a hash of the yaml content and of the real
 #      path of this directory, so an unchanged yaml is reused, not reinstalled.
 # When compute nodes have no internet access, build all environments on the login node first:
-#   snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only
+#   snakemake -s <code dir>/workflow/Snakefile -d <analysis dir> --configfile <analysis dir>/config.yaml --profile <code dir>/profiles/slurm --conda-create-envs-only
 # Without this setting environments go to <working directory>/.snakemake/conda, one copy per result directory.
 conda-prefix: ~/annotation_conda_envs   # the home directory is shared on most clusters; if it is too small, use /shared/...
 

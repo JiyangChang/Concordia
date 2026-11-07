@@ -38,8 +38,8 @@ assembly_qc:
     # 只生成报告，不自动删除序列；是否清理由用户根据报告决定
 
 rna:
-  short: "config/rna_short.tsv"   # 从 config/rna_short.example.tsv 复制后填写
-  long:  "config/rna_long.tsv"    # 从 config/rna_long.example.tsv 复制后填写
+  short: "rna_short.tsv"          # 相对路径相对于工作目录（分析目录）；从 <代码目录>/config/rna_short.example.tsv 复制后填写
+  long:  "rna_long.tsv"           # 从 <代码目录>/config/rna_long.example.tsv 复制后填写
   # platform 取值: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
   #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
   #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
@@ -49,7 +49,7 @@ rna:
                                  #   修正步骤所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。
                                  #   结果没有 UTR、可变剪接和 lncRNA。false 时没有 RNA 样本会报错，防止漏填样本表。
 
-homologs: "config/homologs.tsv"  # 从 config/homologs.example.tsv 复制后填写
+homologs: "homologs.tsv"         # 从 <代码目录>/config/homologs.example.tsv 复制后填写
 homolog_protein_coding_only: true   # 同源注释只保留蛋白编码基因（去掉 TE 基因、假基因、ncRNA 基因及无 CDS 的转录本）
 orthodb_proteins: "db/Viridiplantae.fa"   # BRAKER 分区的 OrthoDB 蛋白（.gz 也可以），只给 BRAKER4 使用
 

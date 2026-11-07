@@ -1,8 +1,8 @@
 # Eukaryotic genome structural + functional annotation workflow
 # Documentation: README.md, docs/deployment_guide.md
 #
-#   snakemake --configfile config/config.yaml --profile profiles/local -n
-#   snakemake --configfile config/config.yaml --profile profiles/slurm
+#   cd <analysis dir>   (results are written to Snakemake's working directory, -d)
+#   snakemake -s <code dir>/workflow/Snakefile -d . --configfile config.yaml --profile <code dir>/profiles/local -n
 #
 # Results are written to <outdir>/00_Data ... 07_Report. Every rule first writes its full command
 # to <step>/scripts/<NN>_<rule>[.<wildcard>].sh and then runs that script (see workflow/lib/shell_script.py).
