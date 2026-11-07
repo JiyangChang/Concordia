@@ -119,7 +119,7 @@ rule tidk:
     log:
         **logs("00_Data", "13_tidk"),
     conda:
-        "../envs/assembly_qc.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         tidk search --string {params.motif} --window {params.window} --output tidk --dir . --extension tsv {input.genome}
@@ -129,7 +129,7 @@ rule tidk:
         {params.summarise} --windows {output.windows} --seqs {input.seqs} --motif {params.motif} \\
             --min-repeats {params.min_repeats} --out {output.table} --out-summary {output.summary}
         cat {output.summary}
-        """, env="assembly_qc", workdir="{params.workdir}", versions="tidk --version")
+        """, env="core", workdir="{params.workdir}", versions="tidk --version")
 
 
 FCS = AQ.get("fcs_gx", {}) or {}
@@ -154,7 +154,7 @@ rule fcs_gx:
     log:
         **logs("00_Data", "14_fcs_gx"),
     conda:
-        "../envs/assembly_qc.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         ln -sf {input.genome} genome.fa
@@ -163,7 +163,7 @@ rule fcs_gx:
         REP=$(ls *.fcs_gx_report.txt 2>/dev/null | head -n 1 || true)
         if [ -z "$REP" ]; then echo "ERROR: FCS-GX wrote no *.fcs_gx_report.txt" >&2; exit 1; fi
         cp "$REP" {output}
-        """, env="assembly_qc", workdir="{params.workdir}")
+        """, env="core", workdir="{params.workdir}")
 
 
 def assembly_qc_inputs():

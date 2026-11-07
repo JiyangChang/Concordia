@@ -50,9 +50,9 @@ rule report:
     log:
         **logs("07_Report", "01_report"),
     conda:
-        "../envs/report.yaml"
+        "../envs/core.yaml"
     shell:
         SH(PY("make_report.py") + """ --outdir {params.out} --prefix """ + PREFIX + """ \\
             --braker4-mode {params.mode} --eviann-tag {params.tag} --config {params.config} \
             --eviann-proteins '{params.eviann_proteins}' --homologs {params.homologs} {params.no_rna} --out {output}
-        """, env="report")
+        """, env="core")

@@ -92,7 +92,7 @@ checks this). Snakemake only reads `config.yaml` in a profile directory; to use 
 `config.en.yaml` over `config.yaml`.
 
 Environments and versions: `workflow/envs/README.md`. In particular:
-- BUSCO conflicts with NanoPlot and OMArk, so they are split into the `qc`, `readqc` and `omark` environments.
+- 7 environments are built by default (core, repeat, eviann, agat, qc, omark, function); repeat, eviann, agat and qc have dependency or file conflicts with other software and must stay separate (reasons in `workflow/envs/README.md`).
 - InterProScan needs Java 11+, provided by openjdk 11 in the `function` environment, independent of the system Java.
 
 ## 5. Databases

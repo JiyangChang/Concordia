@@ -23,7 +23,7 @@ software-deployment-method: [conda]
 
 # conda 环境的存放目录。必须满足：
 #   1. 在共享文件系统上，登录节点和所有计算节点用同一路径都能访问（不要用 /tmp 或节点本地盘）；
-#   2. 空间约 15 GB（默认 11 个环境，启用 Merqury 等可选功能时会多建几个）；
+#   2. 空间约 15 GB（默认 7 个环境，启用 Merqury 等可选功能时会多建几个）；
 #   3. 多个项目/多次运行可以共用：环境按 yaml 内容和该目录真实路径的哈希命名，yaml 不变就直接复用，不会重复安装。
 # 计算节点不能联网时，先在登录节点建好全部环境：
 #   snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only

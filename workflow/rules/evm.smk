@@ -93,7 +93,7 @@ rule evm_impl_check:
     log:
         **logs("05_EVM", "03_evm_impl_check"),
     conda:
-        "../envs/evm.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         STD_BIN=$(command -v EVidenceModeler || true)
@@ -108,7 +108,7 @@ rule evm_impl_check:
         fi
         if [ -z "$(cut -f2 {output})" ]; then echo "ERROR: EVidenceModeler not found in PATH" >&2; exit 1; fi
         cat {output}
-        """, env="evm")
+        """, env="core")
 
 
 # ---------- EVM weight tuning (grid search on one sequence) ----------
@@ -182,7 +182,7 @@ rule evm_tune_run:
     log:
         **logs("05_EVM", "03c_evm_tune_run.{combo}"),
     conda:
-        "../envs/evm.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         BIN=$(cut -f2 {input.check})
@@ -197,7 +197,7 @@ rule evm_tune_run:
             --repeats {params.d}/repeats.gff3 \\
             --segmentSize {params.seg} --overlapSize {params.ovl} $CPU_ARG
         [ -f tune.EVM.gff3 ] || : > tune.EVM.gff3
-        """, env="evm", workdir="{params.workdir}")
+        """, env="core", workdir="{params.workdir}")
 
 
 rule evm_tune_score:
@@ -260,7 +260,7 @@ rule evm:
     log:
         **logs("05_EVM", "04_evm"),
     conda:
-        "../envs/evm.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         BIN=$(cut -f2 {input.check})
@@ -275,7 +275,7 @@ rule evm:
             $TX_ARG \\
             --repeats {input.repeats} \\
             --segmentSize {params.seg} --overlapSize {params.ovl} $CPU_ARG
-        """, env="evm", workdir="{params.workdir}")
+        """, env="core", workdir="{params.workdir}")
 
 
 def refine_support_input():

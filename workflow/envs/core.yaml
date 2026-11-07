@@ -1,8 +1,11 @@
-# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+# 版本已锁定：2026-11-03 用 mamba 求解；2026-11-07 合并 evm / assembly_qc / readqc / report 后重新求解
+# （conda-forge + bioconda）。EviAnn 不能并入：它的包自带 samtools、stringtie、gffread、gffcompare、blastp 等可执行文件
+# 和与 EVM 同名的 PerlLib，装在同一环境会互相覆盖（实测 samtools 变成 1.15.1、stringtie 变成 3.0.0）
 name: anno-core
 channels: [conda-forge, bioconda]
 dependencies:
   - python>=3.10
+  # 输入整理、比对、组装、同源注释
   - seqkit=2.14.0
   - fastp=1.4.0
   - chopper=0.15.0
@@ -14,7 +17,12 @@ dependencies:
   - miniprot=0.18
   - gffcompare=0.12.10
   - gffread=0.12.9
-  - gffutils=0.14
-  - pandas=3.1.0
-  - pysam=0.24.1
-  - biopython=1.88
+  # 原 evm 环境
+  - evidencemodeler=2.1.0
+  # 原 assembly_qc 环境（端粒、污染筛查）
+  - tidk=0.3.1
+  - ncbi-fcs-gx=0.5.5
+  # 原 readqc 环境（长读质控）
+  - nanoplot=1.46.2
+  # 原 report 环境（报告只用 matplotlib；锁定 3.11.2 会与上面的包冲突）
+  - matplotlib-base=3.10.9

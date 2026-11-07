@@ -19,7 +19,7 @@ keep-going: false                 # true = 某一步失败后继续运行不依�
 software-deployment-method: [conda]
 
 # conda 环境的存放目录：
-#   1. 需要约 15 GB 空间（默认 11 个环境，启用 Merqury 等可选功能时会多建几个）；
+#   1. 需要约 15 GB 空间（默认 7 个环境，启用 Merqury 等可选功能时会多建几个）；
 #   2. 多个项目/多次运行可以共用：环境按 yaml 内容和该目录真实路径的哈希命名，yaml 不变就直接复用，不会重复安装；
 #      与 SLURM profile 使用同一目录时，两种运行方式共用一套环境。
 # 不设置时默认放在 <工作目录>/.snakemake/conda，每个结果目录各装一份。

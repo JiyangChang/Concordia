@@ -85,7 +85,7 @@ profile 已开启 `software-deployment-method: [conda]`，命令行不必再加 
 配置模板和每个 profile 都有英文注释版（`config/config.example.en.yaml`、`profiles/*/config.en.yaml`），参数与中文版完全相同（`tests/test_config_translations.py` 检查两者一致）。Snakemake 只读取 profile 目录下的 `config.yaml`，想用英文版时把 `config.en.yaml` 复制为 `config.yaml`。
 
 环境清单和版本见 `workflow/envs/README.md`。其中：
-- BUSCO 与 NanoPlot、OMArk 依赖冲突，已拆成 `qc`、`readqc`、`omark` 三个环境。
+- 默认建立 7 个环境（core、repeat、eviann、agat、qc、omark、function）；repeat、eviann、agat、qc 与其它软件存在依赖或文件冲突，必须独立（原因见 `workflow/envs/README.md`）。
 - InterProScan 需要 Java 11+，由 `function` 环境中的 openjdk 11 提供，不依赖系统 Java。
 
 ## 5. 数据库

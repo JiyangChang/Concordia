@@ -27,7 +27,7 @@ software-deployment-method: [conda]
 # Directory of the conda environments. Requirements:
 #   1. on a shared file system, reachable with the same path from the login node and all compute nodes
 #      (not /tmp or node-local disks);
-#   2. about 15 GB (11 environments by default; optional features such as Merqury add a few);
+#   2. about 15 GB (7 environments by default; optional features such as Merqury add a few);
 #   3. can be shared by projects and runs: environments are named by a hash of the yaml content and of the real
 #      path of this directory, so an unchanged yaml is reused, not reinstalled.
 # When compute nodes have no internet access, build all environments on the login node first:

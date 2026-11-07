@@ -144,11 +144,11 @@ rule nanoplot:
     log:
         **logs("00_Data", "06_nanoplot.{sample}"),
     conda:
-        "../envs/readqc.yaml"
+        "../envs/core.yaml"
     shell:
         SH("""
         NanoPlot {params.fmt} {input} -o {params.outdir} -t {threads}
-        """, env="readqc", versions="NanoPlot --version")
+        """, env="core", versions="NanoPlot --version")
 
 
 HOMOLOG_PC_ONLY = bool(config.get("homolog_protein_coding_only", True))

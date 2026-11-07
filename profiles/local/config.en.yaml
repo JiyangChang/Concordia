@@ -22,7 +22,7 @@ keep-going: false                 # true = after a failed step, continue with st
 software-deployment-method: [conda]
 
 # Directory of the conda environments:
-#   1. needs about 15 GB (11 environments by default; optional features such as Merqury add a few);
+#   1. needs about 15 GB (7 environments by default; optional features such as Merqury add a few);
 #   2. can be shared by projects and runs: environments are named by a hash of the yaml content and of the real
 #      path of this directory, so an unchanged yaml is reused, not reinstalled; using the same directory as the
 #      SLURM profile lets both share one set of environments.
