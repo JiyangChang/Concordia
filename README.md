@@ -45,8 +45,8 @@ cp config/config.example.yaml config/config.yaml        # 英文注释版：conf
 #    样本表：从 config/*.example.tsv 复制为 config/rna_short.tsv、rna_long.tsv、homologs.tsv 再填写
 
 # 2. 外部代码
-#   BRAKER4 已放在 external/BRAKER4（commit 6a5ee16）；重新获取：
-#   git clone https://github.com/Gaius-Augustus/BRAKER4 external/BRAKER4 && git -C external/BRAKER4 checkout 6a5ee16
+#   BRAKER4 是 git 子模块（external/BRAKER4，固定在 commit 6a5ee16），克隆本仓库时一并获取：
+#   git clone --recursive <本流程仓库> annotation   （已克隆但缺少 BRAKER4 时：git submodule update --init）
 #   （可选）git clone https://github.com/hyphaltip/EVidenceModeler_rust external/EVidenceModeler_rust
 
 # 3. 运行

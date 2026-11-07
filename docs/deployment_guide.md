@@ -47,11 +47,13 @@ apptainer --version
 ## 3. 获取流程代码
 
 ```bash
-git clone <本流程仓库> annotation && cd annotation
-# BRAKER4 固定到已核实的版本
-git clone https://github.com/Gaius-Augustus/BRAKER4 external/BRAKER4
-git -C external/BRAKER4 checkout 6a5ee16591a0a15872aa838d9dee68e54f614ee0
+# BRAKER4 是 git 子模块（external/BRAKER4），固定在已核实的 commit 6a5ee16，--recursive 会一并获取
+git clone --recursive <本流程仓库> annotation && cd annotation
+# 已经克隆但 external/BRAKER4 为空时，补拉子模块：
+git submodule update --init
 ```
+
+更新流程代码后，子模块的版本可能随之改变，执行 `git pull && git submodule update` 保持一致。
 
 ## 4. 运行环境
 

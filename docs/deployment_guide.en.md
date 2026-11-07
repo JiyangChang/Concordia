@@ -51,11 +51,13 @@ Notes:
 ## 3. Getting the workflow code
 
 ```bash
-git clone <this workflow's repository> annotation && cd annotation
-# BRAKER4 pinned to the verified version
-git clone https://github.com/Gaius-Augustus/BRAKER4 external/BRAKER4
-git -C external/BRAKER4 checkout 6a5ee16591a0a15872aa838d9dee68e54f614ee0
+# BRAKER4 is a git submodule (external/BRAKER4) pinned to the verified commit 6a5ee16; --recursive fetches it too
+git clone --recursive <this workflow's repository> annotation && cd annotation
+# already cloned but external/BRAKER4 is empty: fetch the submodule
+git submodule update --init
 ```
+
+After updating the workflow code the submodule version may change too; run `git pull && git submodule update` to keep them in step.
 
 ## 4. Runtime environment
 

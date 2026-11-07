@@ -49,8 +49,8 @@ cp config/config.example.en.yaml config/config.yaml     # Chinese comments: conf
 #    sample tables: copy config/*.example.tsv to config/rna_short.tsv, rna_long.tsv, homologs.tsv and fill them in
 
 # 2. External code
-#   BRAKER4 is in external/BRAKER4 (commit 6a5ee16); to fetch it again:
-#   git clone https://github.com/Gaius-Augustus/BRAKER4 external/BRAKER4 && git -C external/BRAKER4 checkout 6a5ee16
+#   BRAKER4 is a git submodule (external/BRAKER4, pinned to commit 6a5ee16), fetched together with this repository:
+#   git clone --recursive <this workflow's repository> annotation   (already cloned without BRAKER4: git submodule update --init)
 #   (optional) git clone https://github.com/hyphaltip/EVidenceModeler_rust external/EVidenceModeler_rust
 
 # 3. Run
