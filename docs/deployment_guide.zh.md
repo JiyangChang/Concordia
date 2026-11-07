@@ -83,7 +83,7 @@ cd my_species && snakemake -s /path/to/concordia/workflow/Snakefile -d . --confi
 
 profile 已开启 `software-deployment-method: [conda]`，命令行不必再加 `--sdm conda`。
 
-配置模板和每个 profile 都有英文注释版（`config/config.example.en.yaml`、`profiles/*/config.en.yaml`），参数与中文版完全相同（`tests/test_config_translations.py` 检查两者一致）。Snakemake 只读取 profile 目录下的 `config.yaml`，想用英文版时把 `config.en.yaml` 复制为 `config.yaml`。
+配置模板和每个 profile 都另有中文注释版（`config/config.example.zh.yaml`、`profiles/*/config.zh.yaml`），参数与英文版（默认）完全相同（`tests/test_config_translations.py` 检查两者一致）。Snakemake 只读取 profile 目录下的 `config.yaml`（英文注释），想用中文注释版时把 `config.zh.yaml` 复制为 `config.yaml`。
 
 环境清单和版本见 `workflow/envs/README.md`。其中：
 - 默认建立 7 个环境（core、repeat、eviann、agat、qc、omark、function）；repeat、eviann、agat、qc 与其它软件存在依赖或文件冲突，必须独立（原因见 `workflow/envs/README.md`）。
@@ -147,7 +147,7 @@ bash scripts/download_databases.sh /path/to/databases   # 可重复运行，断�
 
 ```bash
 mkdir my_species && cd my_species           # 分析目录：配置、样本表和结果都在这里，代码目录只被读取
-cp /path/to/concordia/config/config.example.yaml config.yaml
+cp /path/to/concordia/config/config.example.zh.yaml config.yaml
 ```
 
 必填项：

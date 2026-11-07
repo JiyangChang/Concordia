@@ -65,7 +65,7 @@ bash concordia/scripts/download_databases.sh /shared/myname/db
 
 ## 4. 配置文件 `moringa/config.yaml`
 
-从 `concordia/config/config.example.yaml`（英文注释版 `config.example.en.yaml`）复制后修改。与服务器有关的项：
+从 `concordia/config/config.example.zh.yaml`（中文注释；英文注释版为 `config.example.yaml`）复制后修改。与服务器有关的项：
 
 ```yaml
 outdir: "results"                          # 相对于工作目录：/shared/myname/moringa/results
@@ -117,7 +117,7 @@ resources:
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
 
-复制 `concordia/profiles/slurm/config.yaml`（英文注释版 `config.en.yaml`）后修改以下几项：
+复制 `concordia/profiles/slurm/config.zh.yaml`（中文注释；英文注释版为 `config.yaml`）为 `slurm_profile/config.yaml` 后修改以下几项：
 
 ```yaml
 executor: slurm

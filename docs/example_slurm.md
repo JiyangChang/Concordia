@@ -68,7 +68,7 @@ modules, it is `module load apptainer`; add that line to the script of step 7.
 
 ## 4. Configuration `moringa/config.yaml`
 
-Copy `concordia/config/config.example.en.yaml` (Chinese comments: `config.example.yaml`) and edit. Server-related settings:
+Copy `concordia/config/config.example.yaml` (Chinese comments: `config.example.zh.yaml`) and edit. Server-related settings:
 
 ```yaml
 outdir: "results"                          # relative to the working directory: /shared/myname/moringa/results
@@ -120,7 +120,7 @@ resources:
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
 
-Copy `concordia/profiles/slurm/config.en.yaml` (Chinese comments: `config.yaml`) and change these settings:
+Copy `concordia/profiles/slurm/config.yaml` (Chinese comments: `config.zh.yaml`) and change these settings:
 
 ```yaml
 executor: slurm

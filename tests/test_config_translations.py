@@ -5,9 +5,9 @@ import pytest
 import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAIRS = [("config/config.example.yaml", "config/config.example.en.yaml"),
-         ("profiles/local/config.yaml", "profiles/local/config.en.yaml"),
-         ("profiles/slurm/config.yaml", "profiles/slurm/config.en.yaml")]
+PAIRS = [("config/config.example.zh.yaml", "config/config.example.yaml"),
+         ("profiles/local/config.zh.yaml", "profiles/local/config.yaml"),
+         ("profiles/slurm/config.zh.yaml", "profiles/slurm/config.yaml")]
 
 
 @pytest.mark.parametrize("zh,en", PAIRS)

@@ -87,10 +87,10 @@ Settings in `profiles/slurm/config.yaml` to adapt to the cluster:
 
 The profiles already enable `software-deployment-method: [conda]`; `--sdm conda` is not needed on the command line.
 
-The configuration template and every profile have an English-commented version (`config/config.example.en.yaml`,
-`profiles/*/config.en.yaml`) with exactly the same settings as the Chinese one (`tests/test_config_translations.py`
-checks this). Snakemake only reads `config.yaml` in a profile directory; to use the English version, copy
-`config.en.yaml` over `config.yaml`.
+The configuration template and every profile also have a Chinese-commented version (`config/config.example.zh.yaml`,
+`profiles/*/config.zh.yaml`) with exactly the same settings (`tests/test_config_translations.py` checks this).
+Snakemake only reads `config.yaml` in a profile directory; to use the Chinese version, copy `config.zh.yaml` over
+`config.yaml`.
 
 Environments and versions: `workflow/envs/README.md`. In particular:
 - 7 environments are built by default (core, repeat, eviann, agat, qc, omark, function); repeat, eviann, agat and qc have dependency or file conflicts with other software and must stay separate (reasons in `workflow/envs/README.md`).
@@ -166,7 +166,7 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 
 ```bash
 mkdir my_species && cd my_species           # analysis directory: configuration, sample tables and results; the code directory is only read
-cp /path/to/concordia/config/config.example.en.yaml config.yaml
+cp /path/to/concordia/config/config.example.yaml config.yaml
 ```
 
 Required settings:

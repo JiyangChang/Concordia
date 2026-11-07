@@ -54,7 +54,7 @@ A=$PWD/concordia                                  # workflow code directory, use
 
 # 2. Create the analysis directory with the configuration and sample tables
 mkdir my_species && cd my_species
-cp $A/config/config.example.en.yaml config.yaml    # Chinese comments: config.example.yaml (same parameters)
+cp $A/config/config.example.yaml config.yaml       # Chinese comments: config.example.zh.yaml (same parameters)
 cp $A/config/rna_short.example.tsv rna_short.tsv
 cp $A/config/rna_long.example.tsv  rna_long.tsv
 cp $A/config/homologs.example.tsv  homologs.tsv

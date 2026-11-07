@@ -49,7 +49,7 @@ A=$PWD/concordia                                  # 流程代码目录，下面�
 
 # 2. 新建分析目录，放配置和样本表
 mkdir my_species && cd my_species
-cp $A/config/config.example.yaml config.yaml       # 英文注释版：config.example.en.yaml（参数相同）
+cp $A/config/config.example.zh.yaml config.yaml    # 中文注释版；英文注释版为 config.example.yaml（参数相同）
 cp $A/config/rna_short.example.tsv rna_short.tsv
 cp $A/config/rna_long.example.tsv  rna_long.tsv
 cp $A/config/homologs.example.tsv  homologs.tsv
