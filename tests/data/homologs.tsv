@@ -1,0 +1,3 @@
+name	genome	gff3	protein
+spA	tests/data/spA.fa	tests/data/spA.gff3	
+spB	tests/data/spB.fa	tests/data/spB.gff3	

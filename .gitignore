@@ -1,0 +1,11 @@
+results/
+.snakemake/
+.singularity_cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/out/
+external/BRAKER4/.snakemake/
+GeMoMa_temp/
+.Rhistory
+*.swp

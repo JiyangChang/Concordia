@@ -1,0 +1,8 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+# 可选：EVidenceModeler Rust 实现（只有在 --help 检查确认支持 --repeats 后才会使用）
+name: anno-evm-rust
+channels: [conda-forge]
+dependencies:
+  - rust=1.99.1
+  - make=4.4.1
+# 编译: cd external/EVidenceModeler_rust && make

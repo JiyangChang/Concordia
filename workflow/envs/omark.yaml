@@ -1,0 +1,6 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-omark
+channels: [conda-forge, bioconda]
+dependencies:
+  - omark=0.5.0
+  - omamer=2.1.2

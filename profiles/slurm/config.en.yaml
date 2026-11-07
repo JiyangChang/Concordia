@@ -1,0 +1,39 @@
+# SLURM cluster profile; Chinese version: config.yaml (same settings - keep both in sync).
+# Snakemake reads config.yaml; to use this file, copy it over config.yaml.
+#   Run: snakemake --configfile config/config.yaml --profile profiles/slurm
+#   Requires snakemake-executor-plugin-slurm (2.6.0, as in workflow/envs/braker4.yaml)
+snakefile: workflow/Snakefile
+executor: slurm
+jobs: 100                         # maximum number of jobs queued / running at the same time
+printshellcmds: true
+rerun-incomplete: true
+latency-wait: 120                 # seconds to wait for output files (shared file systems may lag)
+restart-times: 1
+default-resources:
+  slurm_partition: "all"          # change to a partition of your cluster
+  # slurm_account: "my_account"   # set when the cluster requires an accounting account
+  mem_mb: 8000
+  runtime: 600                    # minutes
+# threads / mem_mb / runtime of each step come from the resources section of config.yaml.
+# BRAKER4 runs as a nested Snakemake: set braker4.executor: slurm in config.yaml so that its steps are
+# submitted to SLURM too.
+
+# ---------- software environments ----------
+# Snakemake builds the conda environment of each step from workflow/envs/*.yaml (pinned versions).
+# BRAKER4's software is in its official containers, which BRAKER4 runs with Apptainer itself; apptainer is not
+# needed here.
+software-deployment-method: [conda]
+
+# Directory of the conda environments. Requirements:
+#   1. on a shared file system, reachable with the same path from the login node and all compute nodes
+#      (not /tmp or node-local disks);
+#   2. about 15-20 GB (13 environments; 15 GB in the local test);
+#   3. can be shared by projects and runs: environments are named by a hash of the yaml content and of the real
+#      path of this directory, so an unchanged yaml is reused, not reinstalled.
+# When compute nodes have no internet access, build all environments on the login node first:
+#   snakemake --configfile config/config.yaml --profile profiles/slurm --conda-create-envs-only
+# Without this setting environments go to <working directory>/.snakemake/conda, one copy per result directory.
+conda-prefix: ~/annotation_conda_envs   # the home directory is shared on most clusters; if it is too small, use /shared/...
+
+# Snakemake 8.18.2 creates environments with "mamba env create --no-default-packages", which mamba 2.x rejects -> conda
+conda-frontend: conda

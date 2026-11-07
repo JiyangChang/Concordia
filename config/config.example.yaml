@@ -1,0 +1,236 @@
+# 基因组注释流程 配置示例（英文版：config/config.example.en.yaml，两者参数相同，修改时请同步）
+outdir: "results"                # 其下生成 00_Data ... 07_Report
+species_prefix: "ABCD"           # 最终基因 ID 前缀
+genome: "data/genome.fa"
+max_intron: 50000                # 植物 2e4-5e4；脊椎动物可设 5e5
+min_contig_len: 1000
+
+rename_seqids:
+  # EDTA 要求序列名 <= 13 个字符，且只含字母/数字/下划线
+  # 只要有一条序列名超过 13 个字符，就对整个基因组统一重命名为 seq0001...，
+  # 映射关系写入 00_Data/genome/seqid_map.tsv，最终结果再还原原名；全部合规时不改名
+  max_len: 13
+  prefix: "seq"
+  on_invalid_chars: true         # 名字含非法字符时也统一重命名；false 则报错退出
+
+assembly_qc:
+  # 基因组组装质量评估（结果在 00_Data/qc/，汇总表 00_Data/qc/assembly_quality.tsv）
+  # 默认项：连续性统计（scaffold/contig 两级）、BUSCO 基因组模式（qc.busco_lineages）、端粒检测
+  # 所有评估结果都会写入 07_Report/annotation_report.html 的"基因组组装质量"一节
+  gap_min_n: 10                  # 连续 N 不少于该数目视为 gap，在此处把 scaffold 拆成 contig
+  # LAI（LTR Assembly Index，Ou et al. 2018, NAR 46:e126）：用 EDTA 鉴定的完整 LTR 和全基因组 RepeatMasker 结果计算，
+  #   EDTA 完成后运行（00_Data 的汇总表会等到那时）。参考：draft < 10，reference 10–20，gold ≥ 20。
+  #   LTR 反转录转座子占基因组 < 5% 时 LAI 不适用，报告中显示“不适用”及原因。
+  lai: true
+  lai_mono: false                # 近期多倍化的基因组设为 true（LAI -mono），避免同源 LTR 拷贝的高一致性压低 LAI
+  merqury:                       # k-mer 评估 QV 与完整度；reads 为空则跳过
+    reads: []                    # 目标物种 WGS reads（Illumina 或 HiFi），不要用 RNA-seq
+    k: 21                        # 可用 $MERQURY/best_k.sh <基因组大小> 估算
+  telomere:                      # tidk 端粒检测（默认开启）
+    enabled: true
+    motif: TTTAGGG               # 默认 TTTAGGG（多数植物）；可改为其它序列，如脊椎动物 TTAGGG、多数昆虫 TTAGG
+    window: 10000                # 统计窗口 (bp)
+    min_repeats: 50              # 序列首/尾窗口内 motif 重复数 >= 该值记为有端粒（经验阈值）
+  fcs_gx:                        # NCBI FCS-GX 污染筛查；db 或 tax_id 为空则跳过
+    db: null                     # gxdb 路径，例: /data/gxdb/all（约 470 GB，建议放在 /dev/shm）
+    tax_id: null                 # 目标物种的 NCBI taxonomy ID
+    cmd: "run_gx.py"             # bioconda ncbi-fcs-gx；或 "python3 /path/fcs.py screen genome"（官方容器版）
+    # 只生成报告，不自动删除序列；是否清理由用户根据报告决定
+
+rna:
+  short: "config/rna_short.tsv"   # 从 config/rna_short.example.tsv 复制后填写
+  long:  "config/rna_long.tsv"    # 从 config/rna_long.example.tsv 复制后填写
+  # platform 取值: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
+  #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
+  #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
+  #   EviAnn 标签: 短读+长读=bam_mix；仅短读=bam；仅长读(PacBio 或 ONT)=bam_isoseq（ONT 为暂定方案）
+  allow_none: false              # true = 允许没有任何 RNA-seq（short、long 都设为 null）。此时 BRAKER4 用 EP 模式（只用蛋白），
+                                 #   不运行 EviAnn / StringTie，GeMoMa 不用 RNA 剪接证据；EVM 只整合 BRAKER4、GeMoMa、miniprot；
+                                 #   修正步骤所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。
+                                 #   结果没有 UTR、可变剪接和 lncRNA。false 时没有 RNA 样本会报错，防止漏填样本表。
+
+homologs: "config/homologs.tsv"  # 从 config/homologs.example.tsv 复制后填写
+homolog_protein_coding_only: true   # 同源注释只保留蛋白编码基因（去掉 TE 基因、假基因、ncRNA 基因及无 CDS 的转录本）
+orthodb_proteins: "db/Viridiplantae.fa"   # BRAKER 分区的 OrthoDB 蛋白（.gz 也可以），只给 BRAKER4 使用
+
+# 可选：只用 OrthoDB 中指定分类阶元的蛋白（每次运行时由 workflow/scripts/orthodb_subset.py 抽取到
+# 00_Data/protein_db/orthodb_subset.faa）。BRAKER4 会把蛋白库复制约 3 份并生成 ProtHint 临时文件，
+# 植物全库（1135 万条，5.4 GB）运行时约需 20 GB 磁盘；磁盘紧张或只需要近缘蛋白时使用子集。
+# levels 填 OrthoDB 阶元名或 NCBI taxid，可以多个（取并集）；[] 表示用整个分区。
+# Viridiplantae 分区中可选的阶元（OrthoDB v12：物种数 / 蛋白数）：
+#   Embryophyta 365 / 10.8 M      eudicotyledons 266 / 7.8 M    Liliopsida 62 / 1.9 M
+#   Chlorophyta 43 / 0.40 M       Poales 40 / 1.35 M            Fabales 35 / 1.06 M
+#   Malvales 29 / 0.99 M          Solanales 25 / 0.60 M         Brassicales 25 / 0.92 M
+#   Malpighiales 22 / 0.58 M      Lamiales 20 / 0.52 M          Rosales 20 / 0.47 M
+#   Rosaceae 14 / 0.35 M          Chlorophyceae 21 / 0.24 M     Trebouxiophyceae 12 / 0.09 M
+# 完整列表（含实际在 FASTA 中的物种数）：python workflow/scripts/orthodb_subset.py --list \
+#   --fasta <orthodb_proteins> --levels <levels_tab> --level2species <level2species_tab>
+# 选择建议：目标物种所在的目 + 1~2 个近缘目（如辣木 Moringaceae 属十字花目：[Brassicales, Malvales]）。
+# 两个表格由 scripts/download_databases.sh 的 orthodb_levels 步骤下载（https://data.orthodb.org/v12/download/odb_data_dump/）。
+orthodb_subset:
+  levels: []
+  levels_tab: "db/orthodb/odb12v2_levels.tab.gz"
+  level2species_tab: "db/orthodb/odb12v2_level2species.tab.gz"
+
+repeat:
+  edta_sensitive: 1              # 1: 额外运行 RepeatModeler；0: 更快
+  edta_cds: null                 # 可选：EDTA --cds 用的 CDS 核酸序列 FASTA（目标物种或近缘物种），用于从 TE 库中去除基因片段；
+                                 #   默认不提供。注意 EDTA 要求只含编码区的 DNA 序列（不是蛋白）
+  dfam_dir: "db/dfam"   # Dfam FamDB 根分区（dfam40.0.h5）所在目录；RepeatMasker 4.2 即使用自定义库也需要它
+  rm_nolow: false                # true: RepeatMasker 加 -nolow，只屏蔽 TE
+  # edta_u: 中性突变率 (替换/位点/年)，EDTA 用它计算完整 LTR 的插入时间
+  #   T = K / (2u)，K 为两端 LTR 之间的分化度 (Kimura 双参数校正)
+  #   null  -> 不传 -u，使用 EDTA 默认值 1.3e-8 (水稻)
+  #            出处: Ma J. & Bennetzen J.L. (2004) Rapid recent growth and divergence
+  #            of rice nuclear genomes. PNAS 101:12404-12410. doi:10.1073/pnas.0403715101
+  #   自行估算: 若已知目标类群的同义替换率 r_syn，按上述文献
+  #            "基因间区替换率约为同义位点的 2 倍" 取 u ≈ 2 × r_syn
+  #   只影响 LTR 年龄估计，不影响 TE 库和屏蔽结果
+  edta_u: null
+
+braker4:
+  repo: "external/BRAKER4"      # 相对路径按项目目录解析
+  container_cache: ".singularity_cache"
+  bind: "/home,/scratch"
+  min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
+  use_minisplice: false          # 只在使用 IsoSeq 时生效
+  skip_busco: true               # BUSCO/OMArk 统一由本流程评估
+  run_omark: false
+  executor: local                # local | slurm：嵌套运行 BRAKER4 时使用的 executor（用 slurm profile 时改为 slurm）
+  max_jobs: 50                   # 嵌套运行时 SLURM 的并发作业数上限
+  slurm:
+    default_resources:           # 传给嵌套 BRAKER4 的 --default-resources
+      slurm_partition: all
+  # 模式自动决定: 短读+PacBio=dual, 短读(+ONT)=ETP, 仅PacBio=IsoSeq, 仅ONT=EP, 无 RNA（rna.allow_none）=EP
+
+eviann:
+  # EviAnn 只用 RNA 数据（短读 + 长读）注释；但它确定 CDS 时必须有一个蛋白集：
+  #   填写 swissprot → 用 UniProt-SwissProt（-s，通用蛋白库，不使用同源物种数据）
+  #   null          → 退回使用同源物种蛋白（-p 00_Data/protein_db/homolog_proteins.faa）
+  # 下载：scripts/download_databases.sh 的 swissprot 步骤（databases/uniprot/uniprot_sprot.fasta）
+  swissprot: null
+
+gemoma:
+  # 每个同源物种单独运行一次 GeMoMaPipeline（04_Homology/GeMoMa/<物种>/），RNA 证据（ERE）只提取一次；
+  # 各物种结果用 GeMoMa GAF + AnnotationFinalizer 合并为 04_Homology/gemoma.gff3 进入 EVM。
+  # miniprot 同样按物种分别比对（04_Homology/miniprot/species/），合并后作为 EVM 的 PROTEIN 证据。
+  # 各物种的 GeMoMa 可并行运行，每个占用一份 resources.gemoma；单机运行时请在 profile 中设置全局 mem_mb 上限。
+  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem_mb 计算的 JVM 内存
+  #   bioconda 包装脚本（已核实 gemoma 1.9：包装脚本会自动加上 CLI，不要再写 CLI）: "GeMoMa -Xmx{mem_gb}g"
+  #   直接用 jar 包时需要写 CLI: "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
+  cmd: "GeMoMa -Xmx{mem_gb}g"
+  ere_long_reads: false          # 实验性: 无短读时用长读 BAM 做 ERE
+
+evm:
+  # standard: EVidenceModeler v2.1.0 (默认，支持 --repeats / --CPU)
+  # rust    : hyphaltip/EVidenceModeler_rust；运行前检查 --help 中是否有 --repeats，
+  #           检查不通过或无法确定时自动回滚到 standard，并写入 05_EVM/logs/evm_impl_check.txt
+  implementation: "standard"
+  rust_repo: "external/EVidenceModeler_rust"
+  segment_size: 500000           # < 1 Mb
+  overlap_size: null             # null: 按 max_intron 推算 (至少 1-2 个基因长度)
+  tune:                          # 权重调优：在一条序列上对权重做网格搜索，用最优组合跑全基因组 EVM
+    enabled: true
+    region: auto                 # auto = 最长的序列；或填原始序列名，如 Chr1
+    use_best: true               # false：只输出调优结果，全基因组仍用下面的 weights
+    grid:                        # 每个来源的候选权重；transcripts 指实际使用的转录本证据（LR_ 或 SR_stringtie）
+      BRAKER4: [1, 2]
+      GeMoMa: [3, 5]
+      EviAnn: [5, 10]
+      miniprot: [2]
+      transcripts: [5, 10]
+    # 打分：P = 多外显子模型中，CDS 内含子链被任一种证据（长读；无长读时为短读，标准同 refine 的 A/B/C；miniprot 比对）
+    #        完全支持的比例；R = 长读位点和高一致性蛋白比对位点被覆盖的比例（无 RNA 时只用 miniprot）；
+    #        F = 2PR/(P+R) 最高者为最优。miniprot 和转录本也是 EVM 的输入，打分会略偏向这两类证据。
+  weights:                       # 基线权重（调优中的 c00；关闭调优或 use_best: false 时直接使用）
+    ABINITIO_PREDICTION: {BRAKER4: 2}
+    OTHER_PREDICTION:    {GeMoMa: 5, EviAnn: 8}
+    PROTEIN:             {miniprot: 3}
+    TRANSCRIPT:          {LR_stringtie: 10, SR_stringtie: 6}   # 无长读时用短读 StringTie 组装
+
+refine:
+  # 05_EVM/refine：按 CDS 内含子链比较 EVM 与 EviAnn 模型（规则 R1–R6，见 workflow/scripts/refine.py）
+  min_cds_aa: 50                 # R2/R3/R4 采用的 EviAnn 模型须有完整 ORF 且不短于该长度；最终过滤也用
+  # 最终过滤：基因 CDS 被 EDTA TE 覆盖的比例 > max_te_overlap 且没有 RNA 证据时才剔除
+  #   RNA 证据（任一即可）：StringTie 转录本外显子重叠 / 来自 EviAnn 或与 EviAnn 一致 / BRAKER4 gene_support 有 RNA 支持
+  #     （无 RNA-seq 时改用 miniprot / GeMoMa 的蛋白证据）
+  #   TEsorter 结果只记录在 05_EVM/final/filter_decisions.tsv，不作为删除条件
+  #   R2 补入 EviAnn 基因时也要求 CDS-TE 重叠不超过该值
+  max_te_overlap: 0.5
+  min_lr_support: 2              # R3/R4：模型内含子链被至少这么多条（全长）长读完全支持才算"有支持"
+  lr_weight_by_coverage: true    # 长读按 FASTA/FASTQ 表头的 full_length_coverage 加权（Iso-Seq HQ/LQ 转录本是一簇全长
+                                 #   reads 的一致序列）；无该字段的原始 reads（FLNC、ONT）按 1 计
+                                 #   注意：HQ 转录本至少有 2 条全长 reads，此时 min_lr_support: 2 等于任一条 HQ 转录本即可
+  single_exon_overlap: 0.5       # 单外显子模型：无内含子的长读覆盖模型长度的比例下限
+  # 没有长读时的短读支持（有长读时不使用）：
+  #   B 每个内含子的剪接 reads >= min_sr_junction_reads，且 >= sr_min_junction_ratio x 与它重叠的最强竞争内含子
+  #   A 有一条 StringTie（短读组装，cov >= sr_stringtie_min_cov）转录本，在模型范围内的内含子链与模型完全一致
+  #   C 单外显子模型：有单外显子 StringTie 转录本（cov 达标）覆盖 >= single_exon_overlap，且模型内没有达标的剪接位点
+  #   1 个内含子：B；>= 2 个内含子：A 且 B；单外显子：C。EVM 权重调优打分时使用同一标准。
+  sr_junction_fallback: true     # false = 没有长读时不使用短读判断支持
+  min_sr_junction_reads: 3
+  sr_min_junction_ratio: 0.1
+  sr_stringtie_min_cov: 3
+  import_utr_isoforms: true      # R1：从 EviAnn 引入 UTR 和其它完整异构体
+  remove_unsupported_evm: false  # R5：没有任何证据的 EVM 基因直接删除（默认保留并标记 refine_support=none）
+
+naming:
+  # 最终基因命名（05_EVM/final），新旧 ID 对照表 05_EVM/final/id_map.tsv
+  #   编码基因 <species_prefix><染色体号>G<编号>，如 Mol01G000010；lncRNA 用 L，如 Mol01L000010
+  #   转录本 <基因>.1、.2 …（.1 为 CDS 最长者）
+  scheme: chromosome             # chromosome：按染色体分别编号；sequential：全基因组连续编号（<前缀>G000010）
+  step: 10                       # 编号步长，留出插入新基因的空位
+  digits: 6                      # 编号位数
+  chrom_regex: '^(?:chr(?:omosome)?)?[_-]?0*(\d+)$'   # 从原始序列名取染色体号：Chr1 / chr01 / Chromosome_3 / 1
+  unplaced_code: "00"            # 匹配不到的序列（scaffold、contig）统一用这个代码，按基因组顺序连续编号
+  chrom_codes: {}                # 手动指定，如 {ChrM: Mt, ChrC: Pt}（优先于 chrom_regex）
+  coding_tag: G
+  lncrna_tag: L
+
+qc:
+  busco_lineages: []             # 必填，由用户指定，如 [eudicots_odb12, embryophyta_odb12]；为空时报错
+  busco_download_path: null      # 预下载的 lineage 目录 (离线使用)
+  reference_gff: null   # 可选：已有参考注释（原始序列名）；与各注释来源做 CDS 水平的一致性比较，写入报告
+  # OMAmer 数据库（OMArk 用）：
+  #   LUCA.h5          9.9 GB，运行约需 12 GB 内存（resources.omark.mem_mb 至少 14000）；推荐，可识别任意来源的污染
+  #   Viridiplantae.h5 1.5 GB，约需 2 GB 内存；内存不足 16 GB 时用于植物，完整性/一致性评估不受影响，
+  #                    但只能识别植物来源的污染。两者由 scripts/download_databases.sh 下载（omamer / omamer_plants）
+  omark_db: "db/LUCA.h5"
+  per_homolog: true              # 每个同源物种的 GeMoMa 结果也做 BUSCO + OMArk + AGAT（每个物种多一组评估）
+
+function:
+  interproscan_dir: "/path/to/interproscan-5.7x"
+  interproscan_appl: null        # null = 全部数据库；或 "Pfam,PANTHER,..."
+  eggnog_data_dir: "/path/to/eggnog_data"
+  eggnog_tax_scope: "auto"
+  chunks: 20
+  go_obo: null                   # 可选：GO 本体文件 go-basic.obo（https://purl.obolibrary.org/obo/go/go-basic.obo），
+                                 #       提供后报告中显示 GO 名称和 BP/MF/CC 分类统计
+  report_top: 20                 # 报告中 Pfam / InterPro / GO / KEGG 通路列出前 N 个
+  kegg_pathway_names: download   # KEGG 通路名称：download = 运行时从 https://rest.kegg.jp/list/pathway 下载
+                                 #   （KEGG REST 仅限学术用途）；也可填提前下载好的文件路径；null = 不显示名称
+
+# 每类任务的资源（default 用于未单独列出的任务）
+#   threads : 线程数（本地运行时不会超过 --cores）
+#   mem_mb  : 内存，单位 MB（16000 = 约 16 GB）
+#   runtime : 最长运行时间，单位 分钟（720 = 12 小时，10080 = 7 天）
+# 用途：SLURM 上分别作为 --cpus-per-task / --mem / --time 申请资源，超时或超内存的作业会被调度系统终止；
+#   本地运行时只用于调度（profile 中设了全局 mem_mb 上限时，同时运行的任务内存之和不超过上限），
+#   不会限制或终止进程，runtime 在本地不起作用。
+#   少数工具直接使用这些值：GeMoMa 的 JVM 内存 -Xmx = mem_mb/1000 - 2 GB，Merqury(meryl) memory = mem_mb/1000 - 4 GB，
+#   BRAKER4 的 config.ini（cpus_per_task / mem_of_node / max_runtime）。
+resources:
+  default:      {threads: 8,  mem_mb: 16000,  runtime: 720}
+  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
+  braker4:      {threads: 48, mem_mb: 128000, runtime: 4320}
+  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
+  gemoma:       {threads: 32, mem_mb: 64000,  runtime: 2880}
+  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
+  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
+  refine:       {threads: 1,  mem_mb: 16000,  runtime: 720}
+  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}
+  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
+  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
+  omark:        {threads: 8,  mem_mb: 16000,  runtime: 720}
+  merqury:      {threads: 16, mem_mb: 64000,  runtime: 1440}
+  fcs_gx:       {threads: 48, mem_mb: 512000, runtime: 1440}

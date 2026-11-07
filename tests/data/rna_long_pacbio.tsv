@@ -1,0 +1,2 @@
+sample	reads	platform
+iso1	tests/data/iso.fq.gz	pacbio_isoseq

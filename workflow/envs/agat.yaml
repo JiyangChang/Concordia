@@ -1,0 +1,7 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-agat
+channels: [conda-forge, bioconda]
+dependencies:
+  - agat=1.7.0
+  - gffread=0.12.9
+  - python>=3.10

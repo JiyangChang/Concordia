@@ -1,0 +1,5 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-eviann
+channels: [conda-forge, bioconda]
+dependencies:
+  - eviann=2.0.7

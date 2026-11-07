@@ -1,0 +1,8 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-repeat
+channels: [conda-forge, bioconda]
+dependencies:
+  - edta=2.3.0
+  - tesorter=1.5.1
+  - python>=3.10
+  - pandas=2.3.3                 # TIR-Learner 3.0.7（EDTA 内部调用）不兼容 pandas 3（Series[0] 不再按位置取值）

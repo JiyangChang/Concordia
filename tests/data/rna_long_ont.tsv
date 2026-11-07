@@ -1,0 +1,2 @@
+sample	reads	platform
+ont1	tests/data/ont.fq.gz	ont_cdna

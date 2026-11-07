@@ -1,0 +1,8 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-function
+channels: [conda-forge, bioconda]
+dependencies:
+  - eggnog-mapper=2.1.12
+  - seqkit=2.14.0
+  - openjdk=11                   # InterProScan 5.7x 需要 Java 11+
+# InterProScan 5.7x 推荐使用官方安装包（含数据库）或容器，路径在 config.function.interproscan_dir 中指定

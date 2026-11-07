@@ -1,0 +1,8 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-qc
+channels: [conda-forge, bioconda]
+dependencies:
+  - busco=6.1.0
+  - multiqc=1.35
+  - seqkit=2.14.0
+# BUSCO 与 NanoPlot、OMArk 的依赖冲突，分别放在 readqc.yaml、omark.yaml

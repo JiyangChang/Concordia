@@ -1,0 +1,105 @@
+# 基因组注释流程 配置示例 (v0.2 草稿)
+outdir: "tests/out"                # 其下生成 00_Data ... 07_Report
+species_prefix: "ABCD"           # 最终基因 ID 前缀
+genome: "tests/data/genome.fa"
+max_intron: 50000                # 植物 2e4-5e4；脊椎动物可设 5e5
+min_contig_len: 1000
+
+rename_seqids:
+  # EDTA 要求序列名 <= 13 个字符，且只含字母/数字/下划线
+  # 只要有一条序列名超过 13 个字符，就对整个基因组统一重命名为 seq0001...，
+  # 映射关系写入 00_Data/genome/seqid_map.tsv，最终结果再还原原名；全部合规时不改名
+  max_len: 13
+  prefix: "seq"
+  on_invalid_chars: true         # 名字含非法字符时也统一重命名；false 则报错退出
+
+rna:
+  short: "tests/data/rna_short.tsv"  # 列: sample r1 r2 strandness(unstranded|FR|RF)
+  long:  "tests/data/rna_long.tsv"   # 列: sample reads platform
+  # platform 取值: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
+  #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
+  #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
+  #   EviAnn 标签: 短读+长读=bam_mix；仅短读=bam；仅长读(PacBio 或 ONT)=bam_isoseq（ONT 为暂定方案）
+
+homologs: "tests/data/homologs.tsv"  # 列: name genome gff3 [protein]
+orthodb_proteins: "tests/data/orthodb.fa"
+
+repeat:
+  edta_sensitive: 1              # 1: 额外运行 RepeatModeler；0: 更快
+  edta_cds: null
+  rm_nolow: false                # true: RepeatMasker 加 -nolow，只屏蔽 TE
+  # edta_u: 中性突变率 (替换/位点/年)，EDTA 用它计算完整 LTR 的插入时间
+  #   T = K / (2u)，K 为两端 LTR 之间的分化度 (Kimura 双参数校正)
+  #   null  -> 不传 -u，使用 EDTA 默认值 1.3e-8 (水稻)
+  #            出处: Ma J. & Bennetzen J.L. (2004) Rapid recent growth and divergence
+  #            of rice nuclear genomes. PNAS 101:12404-12410. doi:10.1073/pnas.0403715101
+  #   自行估算: 若已知目标类群的同义替换率 r_syn，按上述文献
+  #            "基因间区替换率约为同义位点的 2 倍" 取 u ≈ 2 × r_syn
+  #   只影响 LTR 年龄估计，不影响 TE 库和屏蔽结果
+  edta_u: null
+
+braker4:
+  repo: "external/BRAKER4"
+  container_cache: ".singularity_cache"
+  bind: "/home,/scratch"
+  min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
+  use_minisplice: false          # 只在使用 IsoSeq 时生效
+  skip_busco: true               # BUSCO/OMArk 统一由本流程评估
+  run_omark: false
+  executor: local                # local | slurm：嵌套运行 BRAKER4 时使用的 executor（用 slurm profile 时改为 slurm）
+  max_jobs: 50                   # 嵌套运行时 SLURM 的并发作业数上限
+  slurm:
+    default_resources:           # 传给嵌套 BRAKER4 的 --default-resources
+      slurm_partition: all
+  # 模式自动决定: 短读+PacBio=dual, 短读(+ONT)=ETP, 仅PacBio=IsoSeq, 仅ONT=EP
+
+gemoma:
+  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem_mb 计算的 JVM 内存
+  #   bioconda 包装脚本: "GeMoMa -Xmx{mem_gb}g CLI"（若包装脚本已包含 CLI，则去掉末尾的 CLI）
+  #   jar 包:            "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
+  cmd: "GeMoMa -Xmx{mem_gb}g CLI"
+  ere_long_reads: false          # 实验性: 无短读时用长读 BAM 做 ERE
+
+evm:
+  # standard: EVidenceModeler v2.1.0 (默认，支持 --repeats / --CPU)
+  # rust    : hyphaltip/EVidenceModeler_rust；运行前检查 --help 中是否有 --repeats，
+  #           检查不通过或无法确定时自动回滚到 standard，并写入 05_EVM/logs/evm_impl_check.txt
+  implementation: "standard"
+  rust_repo: "external/EVidenceModeler_rust"
+  segment_size: 500000           # < 1 Mb
+  overlap_size: null             # null: 按 max_intron 推算 (至少 1-2 个基因长度)
+  weights:
+    ABINITIO_PREDICTION: {BRAKER4: 2}
+    OTHER_PREDICTION:    {GeMoMa: 5, EviAnn: 8}
+    PROTEIN:             {miniprot: 3}
+    TRANSCRIPT:          {LR_stringtie: 10, SR_stringtie: 6}   # 无长读时用短读 StringTie 组装
+
+refine:
+  min_cds_aa: 50
+  max_te_overlap: 0.5
+  min_lr_support: 2              # R3 替换所需的全长长读条数
+  import_utr_isoforms: true
+
+qc:
+  busco_lineages: [eudicots_odb12, embryophyta_odb12]             # 必填，由用户指定，如 [eudicots_odb12, embryophyta_odb12]；为空时报错
+  busco_download_path: null      # 预下载的 lineage 目录 (离线使用)
+  omark_db: "tests/data/LUCA.h5"         # OMAmer 数据库
+
+function:
+  interproscan_dir: "/path/to/interproscan-5.7x"
+  interproscan_appl: null        # null = 全部数据库；或 "Pfam,PANTHER,..."
+  eggnog_data_dir: "/path/to/eggnog_data"
+  eggnog_tax_scope: "auto"
+  chunks: 3
+
+resources:
+  default:      {threads: 8,  mem_mb: 16000,  runtime: 720}
+  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
+  braker4:      {threads: 48, mem_mb: 128000, runtime: 4320}
+  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
+  gemoma:       {threads: 32, mem_mb: 64000,  runtime: 2880}
+  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
+  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
+  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}
+  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
+  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}

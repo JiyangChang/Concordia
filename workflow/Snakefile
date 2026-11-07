@@ -1,0 +1,140 @@
+# Eukaryotic genome structural + functional annotation workflow
+# Documentation: README.md, docs/deployment_guide.md
+#
+#   snakemake --configfile config/config.yaml --profile profiles/local -n
+#   snakemake --configfile config/config.yaml --profile profiles/slurm
+#
+# Results are written to <outdir>/00_Data ... 07_Report. Every rule first writes its full command
+# to <step>/scripts/<NN>_<rule>[.<wildcard>].sh and then runs that script (see workflow/lib/shell_script.py).
+
+import os
+import sys
+
+from snakemake.utils import min_version
+
+min_version("8.0")
+
+sys.path.insert(0, os.path.join(workflow.basedir, "lib"))
+from common import Project, QC_DIRS, MINIMAP2_PRESET, GEMOMA_STRAND, HISAT2_STRAND  # noqa: E402
+from shell_script import SH  # noqa: E402
+
+if os.path.exists("config/config.yaml") and not workflow.overwrite_configfiles:
+    configfile: "config/config.yaml"
+
+P = Project(config, os.getcwd())
+OUT = P.out
+PREFIX = P.prefix
+SCRIPTS = os.path.join(workflow.basedir, "scripts")
+PROJECT_ROOT = os.path.dirname(os.path.abspath(workflow.basedir))   # the directory holding workflow/
+
+
+def project_path(p):
+    """Paths of bundled components (external/...) are relative to the project, not the working dir."""
+    p = os.path.expanduser(str(p))
+    return p if os.path.isabs(p) else os.path.join(PROJECT_ROOT, p)
+CONFIG_FILE = os.path.abspath(workflow.overwrite_configfiles[0] if workflow.overwrite_configfiles else "config/config.yaml")
+
+
+def PY(name):
+    """Command prefix for a helper script in workflow/scripts/."""
+    return f"python3 {SCRIPTS}/{name}"
+
+
+def O(*parts):
+    return os.path.join(OUT, *parts)
+
+
+def script(step, name):
+    return O(step, "scripts", f"{name}.sh")
+
+
+def logs(step, name):
+    return {"out": O(step, "logs", f"{name}.out"), "err": O(step, "logs", f"{name}.err")}
+
+
+def res(name):
+    return P.resources(name)
+
+
+wildcard_constraints:
+    sample=r"[^/]+",
+    homolog=r"[^/]+",
+    group=r"sr|pacbio|ont|lr",
+    lineage=r"[^/]+",
+    chunk=r"\d+",
+    src=r"braker4|gemoma|eviann",
+    combo=r"c\d+",
+
+
+GENOME = O("00_Data/genome/genome.fa")             # internal genome (IDs renamed only if needed)
+GENOME_RAW = O("00_Data/genome/genome.raw.fa")     # original IDs
+SEQID_MAP = O("00_Data/genome/seqid_map.tsv")
+SOFTMASKED = O("01_Repeat/RepeatMasker/genome.softmasked.fa")
+PROTEINS = O("00_Data/protein_db/proteins.faa")    # OrthoDB + homologs (BRAKER4)
+HOMOLOG_PROTEINS = O("00_Data/protein_db/homolog_proteins.faa")
+HOMOLOG_CDS = O("00_Data/protein_db/homolog_cds.fa")
+AGAT_CONFIG = O("00_Data/agat_config.yaml")         # AGAT settings for every AGAT call (progress bar off)
+TX_SOURCE, TX_GROUP, TX_LONG = P.transcript_evidence()
+HAS_RNA = P.has_rna        # False only with rna.allow_none: true (BRAKER4 EP, no EviAnn / StringTie)
+TX_GTF = O(f"02_RNA/stringtie/{TX_SOURCE}.gtf") if HAS_RNA else None
+# without RNA: empty placeholders so refine (all loci -> R5), naming and export run unchanged
+NO_RNA_DIR = O("05_EVM/inputs/no_rna")
+EVIANN_CODING = O("02_RNA/EviAnn/eviann.coding.gff3") if HAS_RNA else f"{NO_RNA_DIR}/eviann.coding.gff3"
+EVIANN_LNC = O("02_RNA/EviAnn/eviann.lncRNA.gff3") if HAS_RNA else f"{NO_RNA_DIR}/eviann.lncRNA.gff3"
+# gene-prediction sources given to EVM (and used for source-agreement statistics)
+GENEPRED = [("braker4", "BRAKER4"), ("gemoma", "GeMoMa")] + ([("eviann", "EviAnn")] if HAS_RNA else [])
+
+FINAL_GFF = O("05_EVM/final", f"{PREFIX}.gff3")
+FINAL_INTERNAL = O("05_EVM/final/final.internal.gff3")          # main result: one transcript per gene
+FINAL_INTERNAL_ALL = O("05_EVM/final/work/final.all_isoforms.internal.gff3")
+FINAL_ALL_GFF = O("05_EVM/final", f"{PREFIX}.all_isoforms.gff3")   # kept as a separate result
+FINAL_LONGEST_PEP = O("05_EVM/final/work/function_input.pep.fa")  # main proteins without '*' (06_Function)
+
+# Annotation GFF3 (internal IDs) that each QC source evaluates
+QC_GFF = {
+    "eviann": O("02_RNA/EviAnn/eviann.coding.gff3"),
+    "braker4": O("03_Ab_initio/braker4.gff3"),
+    "gemoma": O("04_Homology/gemoma.gff3"),
+    "evm": O("05_EVM/evm", f"{PREFIX}.EVM.gff3"),
+    "refine": O("05_EVM/refine/refined.gff3"),
+    "final": FINAL_INTERNAL,
+}
+# every homologous species' own GeMoMa set is evaluated too (qc.per_homolog, default true)
+QC_DIRS = dict(QC_DIRS)
+if (config.get("qc", {}) or {}).get("per_homolog", True):
+    _qc_items = list(QC_DIRS.items())
+    _i = [k for k, _ in _qc_items].index("gemoma")
+    _species = [(f"gemoma_{h['name']}", f"04_Homology/qc/GeMoMa_{h['name']}") for h in P.homologs]
+    QC_DIRS = dict(_qc_items[:_i] + _species + _qc_items[_i:])
+    for h in P.homologs:
+        QC_GFF[f"gemoma_{h['name']}"] = O(f"04_Homology/GeMoMa/{h['name']}/gemoma.{h['name']}.gff3")
+if not HAS_RNA:                       # no EviAnn set to evaluate
+    QC_GFF.pop("eviann")
+    QC_DIRS.pop("eviann")
+
+
+include: "rules/data.smk"
+include: "rules/repeat.smk"
+include: "rules/assembly_qc.smk"
+if HAS_RNA:
+    include: "rules/rna.smk"
+include: "rules/abinitio.smk"
+include: "rules/homology.smk"
+include: "rules/evm.smk"
+include: "rules/qc.smk"
+include: "rules/function.smk"
+include: "rules/report.smk"
+
+
+rule all:
+    input:
+        FINAL_GFF,
+        O("05_EVM/final", f"{PREFIX}.cds.fa"),
+        O("05_EVM/final", f"{PREFIX}.pep.fa"),
+        FINAL_LONGEST_PEP,
+        FINAL_ALL_GFF,
+        O("05_EVM/final", f"{PREFIX}.lncRNA.gff3"),
+        O("05_EVM/qc/summary.tsv"),
+        O("00_Data/qc/assembly_quality.tsv"),
+        O("06_Function/merged", f"{PREFIX}.func.gff3"),
+        O("07_Report/annotation_report.html"),

@@ -1,0 +1,7 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-assembly-qc
+channels: [conda-forge, bioconda]
+dependencies:
+  - python>=3.10
+  - tidk=0.3.1
+  - ncbi-fcs-gx=0.5.5

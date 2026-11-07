@@ -1,0 +1,6 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-merqury
+channels: [conda-forge, bioconda]
+dependencies:
+  - merqury=1.4.1
+  - meryl=1.4.2

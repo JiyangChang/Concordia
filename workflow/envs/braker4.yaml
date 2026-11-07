@@ -1,0 +1,10 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-braker4
+channels: [conda-forge, bioconda]
+dependencies:
+  - python>=3.11
+  - snakemake=8.18.2
+  - pip
+  - pip:
+      - snakemake-executor-plugin-slurm==2.6.0
+# 需要系统安装 Apptainer/Singularity；BRAKER4 的工具都在其容器中运行

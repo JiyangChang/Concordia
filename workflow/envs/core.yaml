@@ -1,0 +1,20 @@
+# 版本已锁定：2026-11-03 用 mamba 求解（conda-forge + bioconda）
+name: anno-core
+channels: [conda-forge, bioconda]
+dependencies:
+  - python>=3.10
+  - seqkit=2.14.0
+  - fastp=1.4.0
+  - chopper=0.15.0
+  - hisat2=2.2.3
+  - minimap2=2.31
+  - samtools=1.24
+  - stringtie=3.0.3
+  - gemoma=1.9
+  - miniprot=0.18
+  - gffcompare=0.12.10
+  - gffread=0.12.9
+  - gffutils=0.14
+  - pandas=3.1.0
+  - pysam=0.24.1
+  - biopython=1.88

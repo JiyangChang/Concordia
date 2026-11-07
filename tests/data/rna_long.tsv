@@ -1,0 +1,3 @@
+sample	reads	platform
+iso1	tests/data/iso.fq.gz	pacbio_isoseq
+ont1	tests/data/ont.fq.gz	ont_cdna

@@ -1,0 +1,3 @@
+[submodule "external/BRAKER4"]
+	path = external/BRAKER4
+	url = https://github.com/Gaius-Augustus/BRAKER4
