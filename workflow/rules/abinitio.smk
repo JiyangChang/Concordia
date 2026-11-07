@@ -6,6 +6,8 @@ B4_DIR = O("03_Ab_initio/BRAKER4")
 B4_BAM, B4_ISO = P.braker4_bams()
 B4_MODE = P.braker4_mode()
 B4_RESULT = O("03_Ab_initio/BRAKER4/output", PREFIX, "results")
+# Snakemake of the running workflow (absolute interpreter path, also valid on SLURM nodes with a shared file system)
+SNAKEMAKE = f"{sys.executable} -m snakemake"
 
 
 rule braker4_inputs:
@@ -67,6 +69,7 @@ rule braker4:
         script=script("03_Ab_initio", "02_braker4"),
         workdir=B4_DIR,
         snakefile=os.path.join(B4_REPO, "Snakefile"),
+        snakemake=SNAKEMAKE,
         cache=os.path.abspath(B4.get("container_cache", ".singularity_cache")),
         # 00_Data may hold symbolic links to the inputs: their directories must be visible in the containers;
         # so must the shared BUSCO dataset directory used by BRAKER4's compleasm
@@ -80,15 +83,15 @@ rule braker4:
         runtime=res("braker4")["runtime"],
     log:
         **logs("03_Ab_initio", "02_braker4"),
-    conda:
-        "../envs/braker4.yaml"
     shell:
+        # The nested BRAKER4 run uses the Snakemake that runs this workflow (same version 8.18.2 and SLURM plugin);
+        # its tools come from BRAKER4's own containers, so no conda environment is needed here.
         SH("""
         export BRAKER4_CONFIG={input.ini}
-        snakemake --snakefile {params.snakefile} --cores {threads} {params.executor} \\
+        {params.snakemake} --snakefile {params.snakefile} --cores {threads} {params.executor} \\
                   --use-singularity --singularity-prefix {params.cache} --singularity-args "-B {params.bind}" \\
                   --latency-wait 120 --restart-times 2 --rerun-incomplete
-        """, env="braker4", workdir="{params.workdir}", versions="snakemake --version")
+        """, workdir="{params.workdir}", versions=f"{SNAKEMAKE} --version")
 
 
 rule braker4_gff:

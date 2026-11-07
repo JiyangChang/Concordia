@@ -7,7 +7,6 @@
 | core | 比对、组装、GeMoMa、miniprot、gff 工具 | HISAT2 2.2.3, minimap2 2.31, samtools 1.24, StringTie 3.0.3, GeMoMa 1.9, miniprot 0.18, gffread 0.12.9, fastp 1.4.0 |
 | repeat | 重复序列 | EDTA 2.3.0, TEsorter 1.5.1, pandas 2.3.3（TIR-Learner 不兼容 pandas 3） |
 | eviann | RNA-based 注释 | EviAnn 2.0.7 |
-| braker4 | 嵌套运行 BRAKER4 | Snakemake 8.18.2 + snakemake-executor-plugin-slurm 2.6.0（工具在 BRAKER4 自带容器中） |
 | evm | 整合 | EVidenceModeler 2.1.0 |
 | evm-rust | 可选的 Rust 版 EVM（源码编译） | rust 1.99.1 |
 | agat | GFF 处理与统计 | AGAT 1.7.0 |
@@ -20,3 +19,5 @@
 | report | 统计报告 | matplotlib 3.11.2, pandas 3.1.0 |
 
 拆分说明：BUSCO 6.1 与 NanoPlot、OMArk 0.5 的依赖冲突（OMArk 需要 Python 3.11，BUSCO 6.1 需要 3.13），因此分成 qc / readqc / omark 三个环境。
+
+BRAKER4 没有单独的环境：嵌套运行 BRAKER4 时直接使用启动流程的 Snakemake（`annotation` 环境：Snakemake 8.18.2 + snakemake-executor-plugin-slurm 2.6.0），BRAKER4 的工具都在它自带的容器中。
