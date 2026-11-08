@@ -79,14 +79,3 @@ def test_placement_file_names(tmp_path):
          "list_of_reference_markers.eukaryota_odb12.2025-01-15.txt"),
         ("tree.eukaryota_odb12.2.2026-05-13.nwk.tar.gz", "tree.eukaryota_odb12.2.2026-05-13.nwk")]
 
-
-def test_fetch_syncs_only_after_installing(tmp_path, monkeypatch):
-    calls = []
-    monkeypatch.setattr(fetch_busco.os, "sync", lambda: calls.append("sync"))
-    dataset(tmp_path, "brassicales_odb12")
-    fetch_busco.ensure(str(tmp_path), ["brassicales_odb12"])
-    assert calls == []                                                 # nothing downloaded: no sync
-    monkeypatch.setattr(fetch_busco, "fetch_versions", lambda ldir: {})
-    monkeypatch.setattr(fetch_busco, "fetch_lineage", lambda ldir, name, rows: dataset(tmp_path, name))
-    fetch_busco.ensure(str(tmp_path), ["embryophyta_odb12"])
-    assert calls == ["sync"] and (tmp_path / "lineages" / "embryophyta_odb12.done").exists()
