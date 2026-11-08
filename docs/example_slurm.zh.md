@@ -100,19 +100,19 @@ function:
   go_obo: "/shared/myname/db/go/go-basic.obo"
   kegg_pathway_names: "/shared/myname/db/kegg/kegg_pathway_names.tsv"   # 计算节点不能联网时用离线文件
 
-# 按节点规格设置：单个作业不能超过一个节点（48 核 / 192 GB）；runtime 单位为分钟
+# 按节点规格设置：单个作业不能超过一个节点（48 核 / 192 GB）；runtime 可写 12h / 3d 等
 resources:
-  default:      {threads: 4,  mem_mb: 8000,   runtime: 720}
-  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
-  braker4:      {threads: 48, mem_mb: 160000, runtime: 4320}
-  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  gemoma:       {threads: 24, mem_mb: 48000,  runtime: 2880}    # 每个同源物种一个作业，可并行
-  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
-  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
-  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}    # function.chunks 个作业并行
-  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
-  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
-  omark:        {threads: 8,  mem_mb: 16000,  runtime: 720}     # LUCA.h5 约需 12 GB
+  default:      {threads: 4,  mem: 8G,    runtime: 12h}
+  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  braker4:      {threads: 48, mem: 160G,  runtime: 3d}
+  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  gemoma:       {threads: 24, mem: 48G,   runtime: 2d}  # 每个同源物种一个作业，可并行
+  evm:          {threads: 32, mem: 32G,   runtime: 1d}
+  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  interproscan: {threads: 16, mem: 32G,   runtime: 1d}  # function.chunks 个作业并行
+  eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
+  busco:        {threads: 16, mem: 32G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 16G,   runtime: 12h}  # LUCA.h5 约需 12 GB
 ```
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
@@ -139,7 +139,7 @@ restart-times: 1
 再加单引号（`"'compute'"`）：否则恰好是 Python 内置名称的值（`all`、`max`、`input` 等）会变成 Python 对象，所有作业在
 启动时失败（例如 `TypeError: all() takes no keyword arguments`）。dry-run（`-n`）检查不出这个问题。
 
-各步骤作业申请的资源来自 `config.yaml` 的 `resources`：`threads` → `--cpus-per-task`，`mem_mb` → `--mem`，`runtime` → `--time`。
+各步骤作业申请的资源来自 `config.yaml` 的 `resources`：`threads` → `--cpus-per-task`，`mem` → `--mem`，`runtime` → `--time`。
 命令行中的 `-s` 会覆盖 profile 里相对路径的 `snakefile`，所以分析目录中的 profile 不需要改 `snakefile`。
 
 ## 6. 建环境与检查（登录节点，需要联网）

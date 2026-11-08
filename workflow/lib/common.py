@@ -57,6 +57,49 @@ def read_table(path):
     return [{k.strip(): (v or "").strip() for k, v in r.items() if k is not None} for r in rows]
 
 
+# ---------- resources with units ----------
+_MEM_MB = {"m": 1, "mb": 1, "g": 1000, "gb": 1000, "t": 1000000, "tb": 1000000,
+           "mib": 1.048576, "gib": 1073.741824, "tib": 1099511.627776}
+_MINUTES = {"m": 1, "min": 1, "h": 60, "d": 1440}
+
+
+def parse_mem_mb(value, default_unit="mb"):
+    """'16G', '512M', '1.5T', '64GiB' -> MB (1 G = 1000 MB, as Snakemake counts); a bare number has `default_unit`."""
+    m = re.fullmatch(r"\s*([0-9]*\.?[0-9]+)\s*([A-Za-z]*)\s*", str(value))
+    unit = (m.group(2).lower() if m else "") or default_unit
+    if not m or unit not in _MEM_MB:
+        raise ConfigError(f"memory '{value}': expected a number with unit M, G or T (e.g. 16G)")
+    return int(round(float(m.group(1)) * _MEM_MB[unit]))
+
+
+def parse_minutes(value):
+    """'12h', '3d', '1d12h', '90m', or a bare number of minutes -> minutes."""
+    v = str(value).strip().lower()
+    if re.fullmatch(r"[0-9]+", v):
+        return int(v)
+    parts = re.findall(r"([0-9]*\.?[0-9]+)\s*(min|d|h|m)", v)
+    if not parts or re.sub(r"[0-9.\s]*(min|d|h|m)", "", v):
+        raise ConfigError(f"runtime '{value}': expected minutes or a duration such as 12h, 3d, 1d12h")
+    return int(round(sum(float(n) * _MINUTES[u] for n, u in parts)))
+
+
+def normalize_resources(r, name="?"):
+    """resources entry -> {threads, mem_mb, runtime}: 'mem' (with unit; bare number = GB) or 'mem_mb' (MB, a unit is
+    also accepted), 'runtime' in minutes or with unit."""
+    d = dict(r)
+    if "mem" in d and "mem_mb" in d:
+        raise ConfigError(f"resources.{name}: give either mem or mem_mb, not both")
+    if "mem" in d:
+        d["mem_mb"] = parse_mem_mb(d.pop("mem"), "gb")
+    elif "mem_mb" in d:
+        d["mem_mb"] = parse_mem_mb(d["mem_mb"], "mb")
+    if "runtime" in d:
+        d["runtime"] = parse_minutes(d["runtime"])
+    if "threads" in d:
+        d["threads"] = int(d["threads"])
+    return d
+
+
 class Project:
     """Validated view of the config plus sample tables."""
 
@@ -162,6 +205,11 @@ class Project:
         impl = self.evm_cfg.get("implementation", "standard")
         if impl not in ("standard", "rust"):
             errs.append("evm.implementation must be 'standard' or 'rust'")
+        for k, r in ((self.cfg.get("resources") or {}).items()):
+            try:
+                normalize_resources(r or {}, k)
+            except ConfigError as e:
+                errs.append(f"resources.{k}: {e}")
         if errs:
             raise ConfigError("Config errors:\n  - " + "\n  - ".join(errs))
 
@@ -399,7 +447,8 @@ class Project:
         return "" if u in (None, "", "null") else f"-u {float(u)}"
 
     def resources(self, name):
+        """threads / mem_mb (MB) / runtime (minutes) of a step: resources.<name> over resources.default."""
         res = self.cfg.get("resources", {}) or {}
-        d = dict(res.get("default", {"threads": 4, "mem_mb": 8000, "runtime": 600}))
-        d.update(res.get(name, {}) or {})
+        d = normalize_resources(res.get("default") or {"threads": 4, "mem_mb": 8000, "runtime": 600}, "default")
+        d.update(normalize_resources(res.get(name) or {}, name))
         return d

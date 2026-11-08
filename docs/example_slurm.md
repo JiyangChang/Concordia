@@ -103,19 +103,19 @@ function:
   go_obo: "/shared/myname/db/go/go-basic.obo"
   kegg_pathway_names: "/shared/myname/db/kegg/kegg_pathway_names.tsv"   # offline file when compute nodes have no internet
 
-# Set according to the nodes: a single job cannot exceed one node (48 cores / 192 GB); runtime in minutes
+# Set according to the nodes: a single job cannot exceed one node (48 cores / 192 GB); runtime e.g. 12h / 3d
 resources:
-  default:      {threads: 4,  mem_mb: 8000,   runtime: 720}
-  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
-  braker4:      {threads: 48, mem_mb: 160000, runtime: 4320}
-  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  gemoma:       {threads: 24, mem_mb: 48000,  runtime: 2880}    # one job per homologous species, in parallel
-  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
-  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
-  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}    # function.chunks jobs in parallel
-  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
-  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
-  omark:        {threads: 8,  mem_mb: 16000,  runtime: 720}     # LUCA.h5 needs about 12 GB
+  default:      {threads: 4,  mem: 8G,    runtime: 12h}
+  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  braker4:      {threads: 48, mem: 160G,  runtime: 3d}
+  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  gemoma:       {threads: 24, mem: 48G,   runtime: 2d}  # one job per homologous species, in parallel
+  evm:          {threads: 32, mem: 32G,   runtime: 1d}
+  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  interproscan: {threads: 16, mem: 32G,   runtime: 1d}  # function.chunks jobs in parallel
+  eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
+  busco:        {threads: 16, mem: 32G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 16G,   runtime: 12h}  # LUCA.h5 needs about 12 GB
 ```
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
@@ -144,7 +144,7 @@ that happens to be a Python built-in (`all`, `max`, `input` ...) would otherwise
 job fails at start-up (e.g. `TypeError: all() takes no keyword arguments`). A dry-run (`-n`) does not catch this.
 
 The resources requested by each step come from `resources` in `config.yaml`: `threads` → `--cpus-per-task`,
-`mem_mb` → `--mem`, `runtime` → `--time`. `-s` on the command line overrides the relative `snakefile` of the
+`mem` → `--mem`, `runtime` → `--time`. `-s` on the command line overrides the relative `snakefile` of the
 profile, so the profile in the analysis directory needs no `snakefile` change.
 
 ## 6. Build environments and check (login node, needs internet)

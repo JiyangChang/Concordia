@@ -54,7 +54,7 @@ braker4:
   # 模式自动决定: 短读+PacBio=dual, 短读(+ONT)=ETP, 仅PacBio=IsoSeq, 仅ONT=EP
 
 gemoma:
-  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem_mb 计算的 JVM 内存
+  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem 计算的 JVM 内存
   #   bioconda 包装脚本: "GeMoMa -Xmx{mem_gb}g CLI"（若包装脚本已包含 CLI，则去掉末尾的 CLI）
   #   jar 包:            "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g CLI"
@@ -93,13 +93,13 @@ function:
   chunks: 3
 
 resources:
-  default:      {threads: 8,  mem_mb: 16000,  runtime: 720}
-  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
-  braker4:      {threads: 48, mem_mb: 128000, runtime: 4320}
-  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  gemoma:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
-  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
-  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}
-  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
-  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
+  default:      {threads: 8,  mem: 16G,   runtime: 12h}
+  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  braker4:      {threads: 48, mem: 128G,  runtime: 3d}
+  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  gemoma:       {threads: 32, mem: 64G,   runtime: 2d}
+  evm:          {threads: 32, mem: 32G,   runtime: 1d}
+  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  interproscan: {threads: 16, mem: 32G,   runtime: 1d}
+  eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
+  busco:        {threads: 16, mem: 32G,   runtime: 12h}

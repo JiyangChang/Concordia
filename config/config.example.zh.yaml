@@ -122,7 +122,7 @@ gemoma:
   # 各物种结果用 GeMoMa GAF + AnnotationFinalizer 合并为 04_Homology/gemoma.gff3 进入 EVM。
   # miniprot 同样按物种分别比对（04_Homology/miniprot/species/），合并后作为 EVM 的 PROTEIN 证据。
   # 各物种的 GeMoMa 可并行运行，每个占用一份 resources.gemoma；单机运行时请在 profile 中设置全局 mem_mb 上限。
-  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem_mb 计算的 JVM 内存
+  # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem 计算的 JVM 内存
   #   bioconda 包装脚本（已核实 gemoma 1.9：包装脚本会自动加上 CLI，不要再写 CLI）: "GeMoMa -Xmx{mem_gb}g"
   #   直接用 jar 包时需要写 CLI: "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
@@ -214,7 +214,7 @@ qc:
                                  #       <outdir>/00_Data/busco_downloads；null = 总是下载到后者
   reference_gff: null   # 可选：已有参考注释（原始序列名）；与各注释来源做 CDS 水平的一致性比较，写入报告
   # OMAmer 数据库（OMArk 用）：
-  #   LUCA.h5          9.9 GB，运行约需 12 GB 内存（resources.omark.mem_mb 至少 14000）；推荐，可识别任意来源的污染
+  #   LUCA.h5          9.9 GB，运行约需 12 GB 内存（resources.omark.mem 至少 14G）；推荐，可识别任意来源的污染
   #   Viridiplantae.h5 1.5 GB，约需 2 GB 内存；内存不足 16 GB 时用于植物，完整性/一致性评估不受影响，
   #                    但只能识别植物来源的污染。两者由 scripts/download_databases.sh 下载（omamer / omamer_plants）
   omark_db: "db/LUCA.h5"
@@ -235,25 +235,26 @@ function:
 
 # 每类任务的资源（default 用于未单独列出的任务）
 #   threads : 线程数（本地运行时不会超过 --cores）
-#   mem_mb  : 内存，单位 MB（16000 = 约 16 GB）
-#   runtime : 最长运行时间，单位 分钟（720 = 12 小时，10080 = 7 天）
+#   mem     : 内存，带单位：16G、512M、1.5T（1G = 1000 MB，与 Snakemake 的计法相同；只写数字时按 GB）；
+#             旧写法 mem_mb: 16000（MB）仍然可用
+#   runtime : 最长运行时间：30m、12h、3d、1d12h，或只写数字（分钟，720 = 12 小时）
 # 用途：SLURM 上分别作为 --cpus-per-task / --mem / --time 申请资源，超时或超内存的作业会被调度系统终止；
 #   本地运行时只用于调度（profile 中设了全局 mem_mb 上限时，同时运行的任务内存之和不超过上限），
 #   不会限制或终止进程，runtime 在本地不起作用。
-#   少数工具直接使用这些值：GeMoMa 的 JVM 内存 -Xmx = mem_mb/1000 - 2 GB，Merqury(meryl) memory = mem_mb/1000 - 4 GB，
+#   少数工具直接使用这些值：GeMoMa 的 JVM 内存 -Xmx = mem - 2 GB，Merqury(meryl) memory = mem - 4 GB，
 #   BRAKER4 的 config.ini（cpus_per_task / mem_of_node / max_runtime）。
 resources:
-  default:      {threads: 8,  mem_mb: 16000,  runtime: 720}
-  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
-  braker4:      {threads: 48, mem_mb: 128000, runtime: 4320}
-  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  gemoma:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
-  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
-  refine:       {threads: 1,  mem_mb: 16000,  runtime: 720}
-  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}
-  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
-  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
-  omark:        {threads: 8,  mem_mb: 16000,  runtime: 720}
-  merqury:      {threads: 16, mem_mb: 64000,  runtime: 1440}
-  fcs_gx:       {threads: 48, mem_mb: 512000, runtime: 1440}
+  default:      {threads: 8,  mem: 16G,   runtime: 12h}
+  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  braker4:      {threads: 48, mem: 128G,  runtime: 3d}
+  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  gemoma:       {threads: 32, mem: 64G,   runtime: 2d}
+  evm:          {threads: 32, mem: 32G,   runtime: 1d}
+  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  refine:       {threads: 1,  mem: 16G,   runtime: 12h}
+  interproscan: {threads: 16, mem: 32G,   runtime: 1d}
+  eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
+  busco:        {threads: 16, mem: 32G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 16G,   runtime: 12h}
+  merqury:      {threads: 16, mem: 64G,   runtime: 1d}
+  fcs_gx:       {threads: 48, mem: 512G,  runtime: 1d}

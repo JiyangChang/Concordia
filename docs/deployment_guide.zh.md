@@ -196,11 +196,11 @@ $SM --profile $A/profiles/local data_qc
 | GeMoMa 只打印工具列表就退出 | 在 bioconda 包装脚本后面又写了 `CLI`；`gemoma.cmd` 应为 `GeMoMa -Xmx{mem_gb}g` |
 | BUSCO 报找不到 lineage | lineage 名称不存在（例如 `eudicots_odb12`；报错会列出相近的名称），或者 `busco_download_path` 没有指向包含 `lineages/` 的目录 |
 | `busco_dataset` 报 "cannot download" | 运行 Snakemake 主进程的节点不能联网：先在能联网的节点上运行一次 `snakemake ... busco_datasets`，再重新启动流程 |
-| OMArk 被系统 OOM 终止 | OMAmer 会把整个 LUCA.h5 读进内存；`resources.omark.mem_mb` 至少 13 GB，并保证它不和其它大任务同时运行 |
+| OMArk 被系统 OOM 终止 | OMAmer 会把整个 LUCA.h5 读进内存；`resources.omark.mem` 至少 13G，并保证它不和其它大任务同时运行 |
 | InterProScan 报 Java 版本过低 | 系统 Java 是 8；流程使用 `function` 环境里的 openjdk 11，请确认 profile 中启用了 `software-deployment-method: [conda]`（两个 profile 默认已启用），没有改用 PATH 中的软件 |
 | 建环境时报 `create: The following argument was not expected: --no-default-packages` | Snakemake 8.18.2 与 mamba 2.x 不兼容；profile 中已设置 `conda-frontend: conda`（conda 默认使用 libmamba 求解器） |
 | BRAKER4 运行中把系统盘写满 | BRAKER4 会把蛋白库复制约 3 份（运行目录、GeneMark-ETP 的 arx/ 和 data/）并生成 ProtHint 临时文件：OrthoDB 植物全库（5.4 GB）约需 20 GB。磁盘有限时用 `orthodb_subset.levels` 只取近缘阶元（例如 Brassicales + Malvales 约 206 万条） |
-| OMArk（omamer search）被 OOM 杀掉（`已杀死` / `Out of memory: Killed process ... (omamer)`） | OMAmer 把整个数据库读入内存，LUCA.h5 约需 12 GB。内存小的机器改用 `Viridiplantae.h5`，或把 `resources.omark.mem_mb` 设到 14000 以上，使它不与其它任务同时运行 |
+| OMArk（omamer search）被 OOM 杀掉（`已杀死` / `Out of memory: Killed process ... (omamer)`） | OMAmer 把整个数据库读入内存，LUCA.h5 约需 12 GB。内存小的机器改用 `Viridiplantae.h5`，或把 `resources.omark.mem` 设到 14G 以上，使它不与其它任务同时运行 |
 | AGAT 报 `Cannot open agat_tmp_<文件名>/result_*.stor` 或 `Failed to delete agat_tmp_<文件名>` | AGAT 在当前目录下按输入文件名建临时文件夹，两个任务同时处理同一个文件时互相删除对方的临时文件。流程中每个 AGAT 任务都在自己的临时目录（`<脚本>.agat`）中运行 |
 | InterProScan 报 `'sequence' is not an amino acid sequence [...]` | 蛋白中有内部终止密码子（gffread 写成 `.`）。流程把功能注释输入中的内部终止写为 X，并在最终 GFF3 中把这类转录本标记为 `internal_stop=yes`（`05_EVM/final/internal_stops.tsv`） |
 | OMArk 第一次运行时卡在 `Downloading taxdump.tar.gz from NCBI FTP site`，或在不能联网的节点上失败 | ete3 第一次使用时下载 NCBI 分类库（约 80 MB 下载、780 MB 的 `~/.etetoolkit/taxa.sqlite`）。先在能联网的节点上、omark 环境中运行一次 `python -c "from ete3 import NCBITaxa; NCBITaxa()"` |

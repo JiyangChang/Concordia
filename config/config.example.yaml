@@ -139,7 +139,7 @@ gemoma:
   # miniprot is also run per species (04_Homology/miniprot/species/); the merged alignments are EVM's PROTEIN evidence.
   # The species can run in parallel, each with one resources.gemoma; on a single machine set a global
   # mem_mb limit in the profile.
-  # GeMoMa command prefix; {mem_gb} is replaced by the JVM memory derived from resources.gemoma.mem_mb
+  # GeMoMa command prefix; {mem_gb} is replaced by the JVM memory derived from resources.gemoma.mem
   #   bioconda wrapper (verified for gemoma 1.9: the wrapper adds CLI itself, do not add it): "GeMoMa -Xmx{mem_gb}g"
   #   jar file directly (CLI needed): "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
@@ -243,7 +243,7 @@ qc:
   reference_gff: null   # optional: existing reference annotation (original sequence names); CDS-level agreement
                         #   with every annotation source, shown in the report
   # OMAmer database (for OMArk):
-  #   LUCA.h5          9.9 GB, needs about 12 GB RAM (resources.omark.mem_mb at least 14000); recommended,
+  #   LUCA.h5          9.9 GB, needs about 12 GB RAM (resources.omark.mem at least 14G); recommended,
   #                    detects contamination from any lineage
   #   Viridiplantae.h5 1.5 GB, needs about 2 GB RAM; for plants on machines with < 16 GB RAM: completeness /
   #                    consistency unaffected, but only plant contamination is detected.
@@ -266,25 +266,26 @@ function:
 
 # Resources per task class (default applies to tasks not listed)
 #   threads : number of threads (never more than --cores when running locally)
-#   mem_mb  : memory in MB (16000 = about 16 GB)
-#   runtime : maximum run time in minutes (720 = 12 hours, 10080 = 7 days)
+#   mem     : memory with unit: 16G, 512M, 1.5T (1G = 1000 MB, as Snakemake counts; a bare number = GB);
+#             the older form mem_mb: 16000 (MB) is still accepted
+#   runtime : maximum run time: 30m, 12h, 3d, 1d12h, or a bare number of minutes (720 = 12 hours)
 # Use: on SLURM they become --cpus-per-task / --mem / --time; jobs exceeding time or memory are killed by the scheduler.
 #   Locally they are only used for scheduling (with a global mem_mb limit in the profile, the memory of jobs running
 #   at the same time never exceeds it); processes are not limited or killed, and runtime has no effect.
-#   A few tools use the values directly: GeMoMa JVM -Xmx = mem_mb/1000 - 2 GB, Merqury (meryl) memory =
-#   mem_mb/1000 - 4 GB, BRAKER4 config.ini (cpus_per_task / mem_of_node / max_runtime).
+#   A few tools use the values directly: GeMoMa JVM -Xmx = mem - 2 GB, Merqury (meryl) memory =
+#   mem - 4 GB, BRAKER4 config.ini (cpus_per_task / mem_of_node / max_runtime).
 resources:
-  default:      {threads: 8,  mem_mb: 16000,  runtime: 720}
-  edta:         {threads: 48, mem_mb: 128000, runtime: 10080}
-  braker4:      {threads: 48, mem_mb: 128000, runtime: 4320}
-  eviann:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  gemoma:       {threads: 32, mem_mb: 64000,  runtime: 2880}
-  evm:          {threads: 32, mem_mb: 32000,  runtime: 1440}
-  repeatmasker: {threads: 32, mem_mb: 32000,  runtime: 2880}
-  refine:       {threads: 1,  mem_mb: 16000,  runtime: 720}
-  interproscan: {threads: 16, mem_mb: 32000,  runtime: 1440}
-  eggnog:       {threads: 32, mem_mb: 64000,  runtime: 1440}
-  busco:        {threads: 16, mem_mb: 32000,  runtime: 720}
-  omark:        {threads: 8,  mem_mb: 16000,  runtime: 720}
-  merqury:      {threads: 16, mem_mb: 64000,  runtime: 1440}
-  fcs_gx:       {threads: 48, mem_mb: 512000, runtime: 1440}
+  default:      {threads: 8,  mem: 16G,   runtime: 12h}
+  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  braker4:      {threads: 48, mem: 128G,  runtime: 3d}
+  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  gemoma:       {threads: 32, mem: 64G,   runtime: 2d}
+  evm:          {threads: 32, mem: 32G,   runtime: 1d}
+  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  refine:       {threads: 1,  mem: 16G,   runtime: 12h}
+  interproscan: {threads: 16, mem: 32G,   runtime: 1d}
+  eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
+  busco:        {threads: 16, mem: 32G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 16G,   runtime: 12h}
+  merqury:      {threads: 16, mem: 64G,   runtime: 1d}
+  fcs_gx:       {threads: 48, mem: 512G,  runtime: 1d}
