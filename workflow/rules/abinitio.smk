@@ -1,4 +1,5 @@
-# 03_Ab_initio: BRAKER4 (nested Snakemake). Only PacBio long reads are passed to BRAKER4.
+# 03_Ab_initio: BRAKER4 (nested Snakemake). Short reads (sr.bam) and PacBio long reads (pacbio.bam) are passed to
+# BRAKER4 (mode dual / ETP / IsoSeq; EP with ONT only or without RNA); ONT long reads are not.
 
 B4 = config.get("braker4", {}) or {}
 B4_REPO = project_path(B4.get("repo", "external/BRAKER4"))

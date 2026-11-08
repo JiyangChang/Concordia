@@ -780,8 +780,8 @@ def main():
     S.append(("braker4", "03_Ab_initio BRAKER4 注释", annotation_section(
         O, "braker4", O("03_Ab_initio/stats/braker4_stats.tsv"), O("03_Ab_initio/stats/braker4_distributions.tsv"),
         O("03_Ab_initio/qc"), figdir,
-        f"<div class='note'>BRAKER4 模式：<b>{html.escape(a.braker4_mode)}</b>（只使用 PacBio 长读；"
-        "ONT 不进入 BRAKER4）。输入为软屏蔽基因组、OrthoDB 与同源物种蛋白。</div>",
+        f"<div class='note'>BRAKER4 模式：<b>{html.escape(a.braker4_mode)}</b>（按数据自动选择：短读 + PacBio = dual，有短读无 PacBio = ETP，仅 PacBio = IsoSeq，仅 ONT 或无 RNA = EP；"
+        "ONT 长读不进入 BRAKER4）。输入为软屏蔽基因组、OrthoDB 与同源物种蛋白。</div>",
         extra="<h3>证据支持（gene_support.tsv）</h3>" + sp_note +
               "<p class='muted'>BRAKER4 未说明该文件的列含义，此处逐列统计非零/为真的模型比例。</p>" +
               table(sp_h, sp_r))))

@@ -23,7 +23,7 @@ Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证�
 | `00_Data` | 输入汇集（可按 OrthoDB 阶元抽取 BRAKER4 用的蛋白子集，`orthodb_subset`；未改动的输入用软链接，不复制：基因组、单个同源蛋白/CDS 文件、只用 OrthoDB 时的蛋白库）；序列名超过 13 个字符时统一重命名；同源注释只保留蛋白编码基因；组装质量评估（连续性、BUSCO、端粒、LAI（EDTA 完成后计算），可选 Merqury / FCS-GX）；RNA 原始数据质控 | seqkit, BUSCO, tidk, fastp, NanoPlot |
 | `01_Repeat` | TE 库构建与软屏蔽；TE 组成、Kimura 景观、LTR 插入时间统计 | EDTA, RepeatMasker |
 | `02_RNA` | 短读和长读比对、合并 BAM、StringTie 组装、长读内含子链；EviAnn 注释（只用 RNA 数据；CDS 判定用 SwissProt，未配置时退回同源蛋白） | HISAT2, minimap2, samtools, StringTie2, EviAnn |
-| `03_Ab_initio` | BRAKER4（嵌套 Snakemake；只使用 PacBio 长读） | BRAKER4 |
+| `03_Ab_initio` | BRAKER4（嵌套 Snakemake）：短读和 / 或 PacBio 长读加蛋白证据，模式按数据自动选择（dual / ETP / IsoSeq / EP，见下文）；ONT 长读不进入 BRAKER4 | BRAKER4 |
 | `04_Homology` | 同源投射与蛋白比对：每个同源物种单独运行 GeMoMa 和 miniprot（各自做 BUSCO/OMArk），再合并（GeMoMa GAF；miniprot 拼接）进入 EVM | GeMoMa, miniprot |
 | `05_EVM` | EVM 整合 → 修正（R1–R6）→ TE / 长度过滤 → 按染色体命名（如 `Mol01G000010`）→ 还原序列名 → 导出；各来源的 BUSCO / OMArk / AGAT 评估 | EVidenceModeler 2.1（Rust 版可选）, AGAT, TEsorter |
 | `06_Function` | 结构域、GO、KEGG、COG（完整 InterProScan 结果 `interproscan/<前缀>.interproscan.{tsv,gff3}`、eggNOG `eggnog/`、合并表 `merged/`） | InterProScan, eggNOG-mapper |

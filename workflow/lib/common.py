@@ -259,7 +259,8 @@ class Project:
         raise KeyError(group)
 
     def braker4_mode(self):
-        """BRAKER4 only uses PacBio long reads; ONT is never passed to BRAKER4."""
+        """BRAKER4 mode from the data: short reads and PacBio long reads are used (dual / ETP / IsoSeq); EP with
+        ONT only or without RNA (ONT long reads are never passed to BRAKER4)."""
         sr, pb = self.has_short, bool(self.pacbio_names)
         if sr and pb:
             return "dual"
