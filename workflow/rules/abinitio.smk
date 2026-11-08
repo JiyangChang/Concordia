@@ -104,6 +104,9 @@ rule braker4:
                                     [os.path.dirname(os.path.realpath(f)) for f in (P.genome, P.orthodb) if f] +
                                     [os.path.realpath(COMPLEASM_DIR), os.path.realpath(B4_REPO)])),
         bind_user=" ".join(b.split(":")[0] for b in B4_BIND),
+        # BUSCO data of compleasm checked again before BRAKER4 starts (fetched if it went missing since the flag)
+        busco_check=PY("fetch_busco.py") + f" --dir {COMPLEASM_DIR} --compleasm"
+                    + (f" --lineage {P.busco_lineages[0]}" if P.busco_lineages else ""),
         executor=braker4_executor_args(),
     threads: res("braker4")["threads"]
     resources:
@@ -118,6 +121,7 @@ rule braker4:
         for d in {params.bind_user}; do
             [ -e "$d" ] || {{ echo "ERROR: braker4.bind: $d does not exist (Apptainer cannot mount it): list existing directories, or leave it empty" >&2; exit 1; }}
         done
+        {params.busco_check}
         export BRAKER4_CONFIG={input.ini}
         {params.snakemake} --snakefile {params.snakefile} --cores {threads} {params.executor} \\
                   --use-singularity --singularity-prefix {params.cache} --singularity-args "-B {params.bind}" \\

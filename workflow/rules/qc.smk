@@ -52,6 +52,7 @@ for _src, _qcdir in QC_DIRS.items():
             script=script(_step, f"qc_02_busco.{_src}.{{lineage}}"),
             outpath=f"{_qc}/busco",
             offline=busco_offline,
+            check=busco_check,
         threads: res("busco")["threads"]
         resources:
             mem_mb=res("busco")["mem_mb"],
@@ -62,6 +63,7 @@ for _src, _qcdir in QC_DIRS.items():
             "../envs/qc.yaml"
         shell:
             SH("""
+            {params.check}
             busco -i {input.pep} -m protein -l {wildcards.lineage} -o {wildcards.lineage} \\
                   --out_path {params.outpath} -c {threads} -f {params.offline}
             cp {params.outpath}/{wildcards.lineage}/short_summary.specific.*.txt {output}

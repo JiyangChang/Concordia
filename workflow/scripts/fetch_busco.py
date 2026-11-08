@@ -178,6 +178,10 @@ def ensure(dirpath, lineages, compleasm=False):
         log("eukaryota placement files installed")
     if compleasm:
         open(os.path.join(ldir, "file_versions.tsv.done"), "a").close()
+    if missing or need_place:
+        # flush to disk now: on removable / network storage a disconnect could otherwise lose data that was
+        # already reported as installed (seen with a USB disk: the dataset vanished after re-mounting)
+        os.sync()
     for l in wanted:                                   # compleasm's per-lineage markers
         marker = os.path.join(ldir, f"{l}.done")
         if not os.path.exists(marker):

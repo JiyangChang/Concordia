@@ -98,6 +98,12 @@ def busco_ready(output_pattern):
     return f
 
 
+def busco_check(wildcards):
+    """Run at the start of every BUSCO job: the .ready flag only says the dataset was there once; this checks it is
+    still present (and complete) and fetches it again otherwise. No network access when it is there."""
+    return PY("fetch_busco.py") + f" --dir {busco_dir(wildcards.lineage)} --lineage {wildcards.lineage}"
+
+
 def busco_offline(wildcards):
     return f"--offline --download_path {busco_dir(wildcards.lineage)}"
 
@@ -152,6 +158,7 @@ rule busco_genome:
         script=script("00_Data", "04_busco_genome.{lineage}"),
         outpath=O("00_Data/qc/busco_genome"),
         offline=busco_offline,
+        check=busco_check,
     threads: res("busco")["threads"]
     resources:
         mem_mb=res("busco")["mem_mb"],
@@ -162,6 +169,7 @@ rule busco_genome:
         "../envs/qc.yaml"
     shell:
         SH("""
+        {params.check}
         busco -i {input.genome} -m genome -l {wildcards.lineage} -o {wildcards.lineage} \\
               --out_path {params.outpath} -c {threads} -f {params.offline}
         cp {params.outpath}/{wildcards.lineage}/short_summary.specific.*.txt {output}
