@@ -4,7 +4,7 @@
 snakefile: workflow/Snakefile
 cores: all                        # use all CPUs of the machine; or a number, e.g. 32
 # Optional: global memory limit in MB, an integer (Snakemake rejects units such as 120G here). The memory of jobs
-# running at the same time (resources.*.mem in config.yaml; 16G there counts as 15259 MB) never exceeds it, so two
+# running at the same time (resources.*.mem in config.yaml; 16G there counts as 16384 MB) never exceeds it, so two
 # memory-heavy jobs (EDTA, BRAKER4, OMArk ...) do not run together and exhaust the RAM. About 90% of the physical
 # memory is a good value.
 # resources:

@@ -4,7 +4,7 @@
 snakefile: workflow/Snakefile
 cores: all                        # 使用本机全部 CPU；可改成具体数字，如 32
 # 可选：全局内存上限，单位 MB，只能写整数（Snakemake 在这里不接受 120G 这类单位）。设置后，同时运行的任务内存
-# （config.yaml 的 resources.*.mem，其中 16G 按 15259 MB 计）之和不会超过它，
+# （config.yaml 的 resources.*.mem，其中 16G 按 16384 MB 计）之和不会超过它，
 # 避免两个大内存任务（EDTA、BRAKER4、OMArk 等）同时运行导致内存不足。建议设为物理内存的 90% 左右。
 # resources:
 #   - mem_mb=120000

@@ -58,16 +58,15 @@ def read_table(path):
 
 
 # ---------- resources with units ----------
-# same conversion as Snakemake's mem resource (humanfriendly sizes, bytes / 1024 / 1024): G = 10^9 bytes = 953.67 MB,
-# GiB = 1024 MB; a profile's default-resources mem: "16G" and the config's mem: 16G give the same mem_mb
-_MEM_MB = {u: f / 1048576 for u, f in {"m": 1e6, "mb": 1e6, "g": 1e9, "gb": 1e9, "t": 1e12, "tb": 1e12,
-                                        "mib": 2**20, "gib": 2**30, "tib": 2**40}.items()}
+# binary units, as sbatch --mem counts them: 16G = 16 x 1024 MB = 16384 (mem_mb is passed to SLURM as --mem <MB>);
+# G / GB / GiB are all taken as 1024 MB
+_MEM_MB = {"m": 1, "mb": 1, "mib": 1, "g": 1024, "gb": 1024, "gib": 1024, "t": 1024**2, "tb": 1024**2, "tib": 1024**2}
 _MINUTES = {"m": 1, "min": 1, "h": 60, "d": 1440}
 
 
 def parse_mem_mb(value, default_unit="mb"):
-    """'16G', '512M', '1.5T', '64GiB' -> mem_mb as Snakemake computes it (16G -> 15259, 16GiB -> 16384); a bare
-    number has `default_unit` ('mb' = MB taken as is, 'gb' = as 'G')."""
+    """'16G', '512M', '1.5T' -> MB in binary units like sbatch --mem (16G -> 16384); a bare number has
+    `default_unit` ('mb' = MB, 'gb' = G)."""
     m = re.fullmatch(r"\s*([0-9]*\.?[0-9]+)\s*([A-Za-z]*)\s*", str(value))
     unit = (m.group(2).lower() if m else "") or default_unit
     if not m or unit not in _MEM_MB:

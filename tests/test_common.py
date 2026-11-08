@@ -155,17 +155,14 @@ def test_path_settings_tilde_and_relative(tmp_path, monkeypatch):
 def test_resource_units():
     import pytest
     from common import ConfigError, normalize_resources, parse_mem_mb, parse_minutes
-    from snakemake.resources import infer_resources
-    for v in ("16G", "16GB", "512M", "1.5T", "64GiB", "100MiB"):           # identical to Snakemake's own conversion
-        r = {}
-        infer_resources("mem", v, r)
-        assert parse_mem_mb(v) == r["mem_mb"], v
-    assert parse_mem_mb("16G") == 15259 and parse_mem_mb("16GiB") == 16384
-    assert parse_mem_mb(32000) == 32000 and parse_mem_mb(16, "gb") == 15259
+    # binary units as sbatch --mem: 16G = 16384 MB
+    assert parse_mem_mb("16G") == 16384 and parse_mem_mb("16GB") == 16384 and parse_mem_mb("16GiB") == 16384
+    assert parse_mem_mb("512M") == 512 and parse_mem_mb("1.5T") == 1572864 and parse_mem_mb("0.5g") == 512
+    assert parse_mem_mb(32000) == 32000 and parse_mem_mb(16, "gb") == 16384
     assert parse_minutes(720) == 720 and parse_minutes("12h") == 720 and parse_minutes("3d") == 4320
     assert parse_minutes("1d12h") == 2160 and parse_minutes("90m") == 90 and parse_minutes("2h30min") == 150
-    assert normalize_resources({"threads": 8, "mem": "16G", "runtime": "12h"}) == {"threads": 8, "mem_mb": 15259, "runtime": 720}
-    assert normalize_resources({"mem": 64}) == {"mem_mb": 61035}                  # bare number in mem = G
+    assert normalize_resources({"threads": 8, "mem": "16G", "runtime": "12h"}) == {"threads": 8, "mem_mb": 16384, "runtime": 720}
+    assert normalize_resources({"mem": 64}) == {"mem_mb": 65536}                  # bare number in mem = G
     assert normalize_resources({"mem_mb": 8000, "runtime": 600}) == {"mem_mb": 8000, "runtime": 600}   # old style
     for bad in ({"mem": "16X"}, {"runtime": "12 hours"}, {"mem": "16G", "mem_mb": 16000}):
         with pytest.raises(ConfigError):
@@ -177,5 +174,5 @@ def test_resources_step_over_default(tmp_path):
     cfg = {"resources": {"default": {"threads": 4, "mem": "8G", "runtime": "10h"}, "edta": {"threads": 48, "mem": "128G"}}}
     p = Project.__new__(Project)
     p.cfg = cfg
-    assert p.resources("edta") == {"threads": 48, "mem_mb": 122070, "runtime": 600}
-    assert p.resources("other") == {"threads": 4, "mem_mb": 7629, "runtime": 600}
+    assert p.resources("edta") == {"threads": 48, "mem_mb": 131072, "runtime": 600}
+    assert p.resources("other") == {"threads": 4, "mem_mb": 8192, "runtime": 600}
