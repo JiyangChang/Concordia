@@ -235,7 +235,8 @@ function:
 
 # 每类任务的资源（default 用于未单独列出的任务）
 #   threads : 线程数（本地运行时不会超过 --cores）
-#   mem     : 内存，带单位：16G、512M、1.5T（1G = 1000 MB，与 Snakemake 的计法相同；只写数字时按 GB）；
+#   mem     : 内存，带单位：16G、512M、1.5T、16GiB（只写数字时按 G）。换算成 MB 的方式与 Snakemake 完全相同：
+#             G = 10^9 字节（16G = 15259 MB），GiB = 1024 MB（16GiB = 16384 MB，等于 sbatch --mem=16G）；
 #             旧写法 mem_mb: 16000（MB）仍然可用
 #   runtime : 最长运行时间：30m、12h、3d、1d12h，或只写数字（分钟，720 = 12 小时）
 # 用途：SLURM 上分别作为 --cpus-per-task / --mem / --time 申请资源，超时或超内存的作业会被调度系统终止；

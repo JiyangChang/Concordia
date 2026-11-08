@@ -14,9 +14,11 @@ restart-times: 1
 default-resources:
   slurm_partition: "'all'"        # 改成你所在集群的分区（两层引号都保留）
   # slurm_account: "'my_account'" # 集群要求记账账户时填写
-  mem_mb: 8000
-  runtime: 600                    # 分钟
-# 各步骤的 threads / mem_mb / runtime 来自 config.yaml 的 resources 段。
+  mem_mb: 8000                    # 单位 MB，只能写整数：这里写 mem: "8G" 会覆盖所有步骤自己的内存，
+                                  #   写 mem_mb: "8G" 则 SLURM 插件无法识别（Snakemake 8.18 / 插件 2.6）
+  runtime: "10h"                  # 分钟，或 "10h"、"2d" 这样的时长
+# 这些默认值只用于没有单独设置的步骤：各步骤的 threads / mem / runtime 来自 config.yaml 的 resources 段
+# （那里可以写 mem: 16G）。
 # BRAKER4 以嵌套 Snakemake 运行：在 config.yaml 中设置 braker4.executor: slurm，它内部的步骤才会提交到 SLURM。
 
 # ---------- 软件环境 ----------

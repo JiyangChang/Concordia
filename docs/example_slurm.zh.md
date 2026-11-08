@@ -125,8 +125,8 @@ jobs: 50                                   # 同时排队 / 运行的作业数�
 default-resources:
   slurm_partition: "'compute'"             # 分区名；保留里面的单引号（见下文）
   slurm_account: "'my_project'"            # 集群要求记账账户时填写；否则删掉这一行
-  mem_mb: 8000
-  runtime: 600
+  mem_mb: 8000                             # 单位 MB，只能写整数（这里不支持单位）
+  runtime: "10h"
 software-deployment-method: [conda]
 conda-prefix: /shared/myname/conda_envs    # 共享存储上的绝对路径；第一次建环境前定好，之后不要移动
 conda-frontend: conda

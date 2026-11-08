@@ -58,18 +58,23 @@ def read_table(path):
 
 
 # ---------- resources with units ----------
-_MEM_MB = {"m": 1, "mb": 1, "g": 1000, "gb": 1000, "t": 1000000, "tb": 1000000,
-           "mib": 1.048576, "gib": 1073.741824, "tib": 1099511.627776}
+# same conversion as Snakemake's mem resource (humanfriendly sizes, bytes / 1024 / 1024): G = 10^9 bytes = 953.67 MB,
+# GiB = 1024 MB; a profile's default-resources mem: "16G" and the config's mem: 16G give the same mem_mb
+_MEM_MB = {u: f / 1048576 for u, f in {"m": 1e6, "mb": 1e6, "g": 1e9, "gb": 1e9, "t": 1e12, "tb": 1e12,
+                                        "mib": 2**20, "gib": 2**30, "tib": 2**40}.items()}
 _MINUTES = {"m": 1, "min": 1, "h": 60, "d": 1440}
 
 
 def parse_mem_mb(value, default_unit="mb"):
-    """'16G', '512M', '1.5T', '64GiB' -> MB (1 G = 1000 MB, as Snakemake counts); a bare number has `default_unit`."""
+    """'16G', '512M', '1.5T', '64GiB' -> mem_mb as Snakemake computes it (16G -> 15259, 16GiB -> 16384); a bare
+    number has `default_unit` ('mb' = MB taken as is, 'gb' = as 'G')."""
     m = re.fullmatch(r"\s*([0-9]*\.?[0-9]+)\s*([A-Za-z]*)\s*", str(value))
     unit = (m.group(2).lower() if m else "") or default_unit
     if not m or unit not in _MEM_MB:
-        raise ConfigError(f"memory '{value}': expected a number with unit M, G or T (e.g. 16G)")
-    return int(round(float(m.group(1)) * _MEM_MB[unit]))
+        raise ConfigError(f"memory '{value}': expected a number with unit M, G, T or MiB, GiB, TiB (e.g. 16G)")
+    if not m.group(2) and default_unit == "mb":
+        return int(float(m.group(1)))                       # mem_mb: 16000 stays 16000
+    return max(int(round(float(m.group(1)) * _MEM_MB[unit])), 1)
 
 
 def parse_minutes(value):

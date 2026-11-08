@@ -266,7 +266,8 @@ function:
 
 # Resources per task class (default applies to tasks not listed)
 #   threads : number of threads (never more than --cores when running locally)
-#   mem     : memory with unit: 16G, 512M, 1.5T (1G = 1000 MB, as Snakemake counts; a bare number = GB);
+#   mem     : memory with unit: 16G, 512M, 1.5T, 16GiB (a bare number = G). Converted to MB exactly as Snakemake
+#             does: G = 10^9 bytes (16G = 15259 MB), GiB = 1024 MB (16GiB = 16384 MB, = sbatch --mem=16G);
 #             the older form mem_mb: 16000 (MB) is still accepted
 #   runtime : maximum run time: 30m, 12h, 3d, 1d12h, or a bare number of minutes (720 = 12 hours)
 # Use: on SLURM they become --cpus-per-task / --mem / --time; jobs exceeding time or memory are killed by the scheduler.

@@ -14,9 +14,11 @@ restart-times: 1
 default-resources:
   slurm_partition: "'all'"        # change to a partition of your cluster (keep both quotes)
   # slurm_account: "'my_account'" # set when the cluster requires an accounting account
-  mem_mb: 8000
-  runtime: 600                    # minutes
-# threads / mem_mb / runtime of each step come from the resources section of config.yaml.
+  mem_mb: 8000                    # MB, an integer: here mem: "8G" would override the memory of every step and
+                                  #   mem_mb: "8G" is not understood by the SLURM plugin (Snakemake 8.18 / plugin 2.6)
+  runtime: "10h"                  # minutes, or a duration such as "10h", "2d"
+# These defaults only apply to steps without their own values: threads / mem / runtime of each step come from the
+# resources section of config.yaml (where mem: 16G works).
 # BRAKER4 runs as a nested Snakemake: set braker4.executor: slurm in config.yaml so that its steps are
 # submitted to SLURM too.
 

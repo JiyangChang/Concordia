@@ -3,7 +3,8 @@
 #   运行：snakemake -s <代码目录>/workflow/Snakefile -d <分析目录> --configfile <分析目录>/config.yaml --profile <代码目录>/profiles/local
 snakefile: workflow/Snakefile
 cores: all                        # 使用本机全部 CPU；可改成具体数字，如 32
-# 可选：全局内存上限（MB）。设置后，同时运行的任务内存（config.yaml 的 resources.*.mem_mb）之和不会超过它，
+# 可选：全局内存上限，单位 MB，只能写整数（Snakemake 在这里不接受 120G 这类单位）。设置后，同时运行的任务内存
+# （config.yaml 的 resources.*.mem，其中 16G 按 15259 MB 计）之和不会超过它，
 # 避免两个大内存任务（EDTA、BRAKER4、OMArk 等）同时运行导致内存不足。建议设为物理内存的 90% 左右。
 # resources:
 #   - mem_mb=120000
@@ -11,7 +12,7 @@ printshellcmds: true
 rerun-incomplete: true
 latency-wait: 30                  # 输出文件出现的等待秒数（本地磁盘无需太长）
 keep-going: false                 # true = 某一步失败后继续运行不依赖它的步骤
-# 各步骤的 threads / mem_mb 来自 config.yaml 的 resources 段；单机运行时 runtime 不起作用。
+# 各步骤的 threads / mem 来自 config.yaml 的 resources 段；单机运行时 runtime 不起作用。
 # BRAKER4 以嵌套 Snakemake 运行，保持 config.yaml 中 braker4.executor: local。
 
 # ---------- 软件环境 ----------

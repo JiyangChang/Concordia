@@ -128,8 +128,8 @@ jobs: 50                                   # maximum jobs queued / running at th
 default-resources:
   slurm_partition: "'compute'"             # partition name; keep the inner single quotes (see below)
   slurm_account: "'my_project'"            # when the cluster requires an accounting account; otherwise delete
-  mem_mb: 8000
-  runtime: 600
+  mem_mb: 8000                             # MB, integer only (units are not supported here)
+  runtime: "10h"
 software-deployment-method: [conda]
 conda-prefix: /shared/myname/conda_envs    # absolute path on shared storage; set before the first build, never move it
 conda-frontend: conda
