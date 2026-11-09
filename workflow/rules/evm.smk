@@ -184,7 +184,8 @@ rule evm_tune_run:
     conda:
         "../envs/core.yaml"
     shell:
-        SH("""
+        # EVidenceModeler 2.x resumes from its __<id>-EVM_chckpts directory (weights.txt is an input: kept)
+        SH(RESUME_GUARD("rm -rf ./__*-EVM_chckpts* ./*.partitions* ./tune.EVM.*") + """
         BIN=$(cut -f2 {input.check})
         CPU_ARG=""
         if "$BIN" --help 2>&1 | grep -q -- '--CPU'; then CPU_ARG="--CPU {threads}"; fi
@@ -262,7 +263,8 @@ rule evm:
     conda:
         "../envs/core.yaml"
     shell:
-        SH("""
+        # EVidenceModeler 2.x resumes from its __<id>-EVM_chckpts directory
+        SH(RESUME_GUARD("rm -rf ./__*-EVM_chckpts* ./*.partitions* ./*.EVM.*") + """
         BIN=$(cut -f2 {input.check})
         echo "EVM implementation: $(cut -f1,3 {input.check})"
         CPU_ARG=""

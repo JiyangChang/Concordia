@@ -72,7 +72,8 @@ rule edta:
     conda:
         "../envs/repeat.yaml"
     shell:
-        SH("""
+        # EDTA reuses its earlier intermediate results (--overwrite 0, its default)
+        SH(RESUME_GUARD("rm -rf ./genome.fa ./genome.fa.mod*") + """
         ln -sf {input.genome} genome.fa
         EDTA.pl --genome genome.fa --species others --step all \\
                 --sensitive {params.sensitive} --anno 1 --threads {threads} {params.cds} {params.u}

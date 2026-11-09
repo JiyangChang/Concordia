@@ -55,6 +55,24 @@ def logs(step, name):
     return {"out": O(step, "logs", f"{name}.out"), "err": O(step, "logs", f"{name}.err")}
 
 
+def RESUME_GUARD(clean):
+    """Shell lines for tools that resume from their own intermediate files (EDTA, EviAnn, EVidenceModeler): the
+    old state is kept only when the step's command and inputs (size, modification time) are unchanged since the
+    last attempt, e.g. to continue after a crash; otherwise `clean` removes it first, so that changed inputs or
+    parameters never reuse stale results. Run in the step's working directory."""
+    return ("""
+        # resume guard: reuse this tool's intermediate files only if command and inputs are unchanged
+        FP=$( (grep -v '^# Generated at' {params.script}; for f in {input}; do stat -L -c '%n %s %Y' "$f"; done) | md5sum | cut -c1-32 )
+        if [ "$(cat .resume_fingerprint 2>/dev/null)" != "$FP" ]; then
+            echo "command or inputs changed since the last attempt (or first run): starting from a clean state"
+            """ + clean + """
+            echo "$FP" > .resume_fingerprint
+        else
+            echo "command and inputs unchanged: the tool may resume from its intermediate files"
+        fi
+""")
+
+
 def res(name):
     return P.resources(name)
 
