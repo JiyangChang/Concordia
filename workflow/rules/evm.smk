@@ -370,7 +370,8 @@ rule final_tesorter:
         "../envs/repeat.yaml"
     shell:
         SH("""
-        TEsorter {input} -st prot -p {threads} -pre refined
+        # -fw: recompute; TEsorter would otherwise reuse an old HMM search of the previous proteins in this directory
+        TEsorter {input} -st prot -p {threads} -pre refined -fw
         [ -f refined.cls.tsv ] || : > refined.cls.tsv
         """, env="repeat", workdir="{params.workdir}")
 
