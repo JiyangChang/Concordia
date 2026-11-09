@@ -1,3 +1,4 @@
+import os
 """Decision logic in workflow/lib/common.py."""
 import pytest
 
@@ -43,7 +44,7 @@ def test_modes(tmp_path, short, pacbio, ont, mode, tags):
     assert p.braker4_mode() == mode
     lines, _ = p.eviann_reads()
     assert [t for _, t in lines] == tags                    # one EviAnn line per sample, per-sample BAMs
-    assert all("/02_RNA/align_" in b and "/merged/" not in b for b, _ in lines)
+    assert all("/02_RNA/align_" in b and "/merged/" not in b for bams, _ in lines for b in bams)
     bam, iso = p.braker4_bams()
     assert bool(iso) == pacbio and (not iso or iso.endswith("pacbio.bam"))
     assert bool(bam) == short
@@ -178,3 +179,27 @@ def test_resources_step_over_default(tmp_path):
     p.cfg = cfg
     assert p.resources("edta") == {"threads": 48, "mem_mb": 131072, "runtime": 600}
     assert p.resources("other") == {"threads": 4, "mem_mb": 8192, "runtime": 600}
+
+
+def test_eviann_tissue_groups(tmp_path):
+    from common import ConfigError
+    s = ("sample\tr1\tr2\tstrandness\ttissue\n"
+         "leaf1\ta\tb\tRF\tleaf\nleaf2\ta\tb\tRF\tleaf\nroot1\ta\tb\tRF\troot\nfree\ta\tb\tRF\t\n")
+    l = "sample\treads\tplatform\tsample_group\nisoL\tx.fa\tpacbio_isoseq\tleaf\nisoX\ty.fa\tpacbio_isoseq\t\n"
+    p = Project({"genome": "g.fa", "outdir": "out", "homologs": write(tmp_path, "h.tsv", "name\tgenome\tgff3\n"
+                                                                    "ath\tg\tf\n"),
+                 "rna": {"short": write(tmp_path, "s.tsv", s), "long": write(tmp_path, "l.tsv", l)},
+                 "qc": {"busco_lineages": ["x"], "omark_db": "LUCA.h5"}}, str(tmp_path))
+    lines, summary = p.eviann_reads()
+    assert [(len(b), t) for b, t in lines] == [(1, "bam"), (1, "bam_isoseq"), (2, "bam_mix"), (1, "bam")]
+    leaf = next(b for b, t in lines if t == "bam_mix")
+    assert [os.path.relpath(b, p.out) for b in leaf] == ["02_RNA/EviAnn/groups/leaf.sr.bam",   # 2 samples: merged
+                                                         "02_RNA/align_long/isoL.bam"]          # 1 sample: as is
+    root = lines[-1][0][0]
+    assert os.path.relpath(root, p.out) == "02_RNA/align_short/root1.bam"
+    assert summary == "2 x bam + 1 x bam_isoseq + 1 x bam_mix"
+    assert p.eviann_groups()["leaf"]["sr"] == [p.o("02_RNA/align_short/leaf1.bam"), p.o("02_RNA/align_short/leaf2.bam")]
+    with pytest.raises(ConfigError, match="tissue"):
+        Project({"genome": "g.fa", "rna": {"short": write(tmp_path, "b.tsv", "sample\tr1\tr2\tstrandness\ttissue\n"
+                                                                             "a\tx\ty\tRF\tleaf tissue\n")}},
+                str(tmp_path))

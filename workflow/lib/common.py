@@ -7,6 +7,7 @@ Everything that decides *which* evidence goes *where* lives here so it can be un
 import csv
 import os
 import re
+from collections import Counter
 
 LONG_PLATFORMS = ("pacbio_isoseq", "pacbio_hifi", "ont_cdna", "ont_drna")
 PACBIO = ("pacbio_isoseq", "pacbio_hifi")
@@ -104,6 +105,14 @@ def normalize_resources(r, name="?"):
     return d
 
 
+def _tissue(row, table):
+    """Optional EviAnn sample group of a sample-table row: column tissue (or sample_group); "" = none."""
+    t = (row.get("tissue") or row.get("sample_group") or "").strip()
+    if t and not re.fullmatch(r"[A-Za-z0-9_.-]+", t):
+        raise ConfigError(f"{table}: sample {row.get('sample')} has tissue '{t}'; use letters, digits, _ . - only")
+    return t
+
+
 class Project:
     """Validated view of the config plus sample tables."""
 
@@ -154,7 +163,7 @@ class Project:
             if s not in STRANDNESS:
                 raise ConfigError(f"rna_short: sample {r.get('sample')} has strandness '{s}', expected one of {STRANDNESS}")
             rows.append({"sample": r["sample"], "r1": _abs(r["r1"], self.base),
-                         "r2": _abs(r.get("r2"), self.base), "strandness": s})
+                         "r2": _abs(r.get("r2"), self.base), "strandness": s, "tissue": _tissue(r, "rna_short")})
         return rows
 
     def _load_long(self, path):
@@ -165,7 +174,8 @@ class Project:
                 raise ConfigError(f"rna_long: sample {r.get('sample')} has platform '{p}', expected one of {LONG_PLATFORMS}")
             rows.append({"sample": r["sample"], "reads": _abs(r["reads"], self.base), "platform": p,
                          # optional: Iso-Seq count table giving each HQ transcript's full-length read count
-                         "counts": _abs(r.get("counts") or None, self.base)})
+                         "counts": _abs(r.get("counts") or None, self.base),
+                         "tissue": _tissue(r, "rna_long")})
         return rows
 
     def _load_homologs(self, path):
@@ -329,18 +339,45 @@ class Project:
         iso = os.path.join(merged, "pacbio.bam") if self.pacbio_names else ""
         return bam, iso
 
+    def eviann_groups(self):
+        """{tissue: {"sr": [sample BAMs], "lr": [sample BAMs]}} of the samples with a tissue / sample_group."""
+        g = {}
+        for r in self.short:
+            if r["tissue"]:
+                g.setdefault(r["tissue"], {"sr": [], "lr": []})["sr"].append(self.o("02_RNA/align_short", f"{r['sample']}.bam"))
+        for r in self.long:
+            if r["tissue"]:
+                g.setdefault(r["tissue"], {"sr": [], "lr": []})["lr"].append(self.o("02_RNA/align_long", f"{r['sample']}.bam"))
+        return g
+
+    def eviann_group_bam(self, tissue, kind):
+        """BAM given to EviAnn for one tissue and read kind (sr / lr): the sample's own BAM when the tissue has one
+        sample of that kind, otherwise the merged BAM (rule eviann_group_bam)."""
+        members = self.eviann_groups()[tissue][kind]
+        return members[0] if len(members) == 1 else self.o("02_RNA/EviAnn/groups", f"{tissue}.{kind}.bam")
+
     def eviann_reads(self):
-        """(lines, summary) of EviAnn's reads file: one line per sample, as EviAnn expects (it assembles every
-        sample separately and counts in how many samples each transcript is found; lncRNAs must be found in at
-        least 2 samples, so merged BAMs would give no lncRNA at all). Short-read samples: their HISAT2 BAM,
-        tag bam; long-read samples (PacBio, provisionally ONT): their minimap2 BAM, tag bam_isoseq.
-        lines = [(bam path, tag), ...]; summary e.g. "6 x bam + 1 x bam_isoseq"."""
+        """(lines, summary) of EviAnn's reads file. EviAnn assembles every line (= sample / tissue) separately and
+        counts in how many lines each transcript is found: lncRNAs must be found in at least 2, coding transcripts
+        in at least 1/10 of the lines unless TPM >= 100; so merged BAMs would give no lncRNA at all.
+        - samples without tissue: one line each; short reads tag bam, long reads (PacBio, provisionally ONT)
+          tag bam_isoseq;
+        - samples with the same tissue (column tissue or sample_group): one line, their BAMs merged per read kind;
+          short + long reads of one tissue -> bam_mix (EviAnn's tag for one sample sequenced both ways).
+        lines = [([bam, ...], tag), ...]; summary e.g. "6 x bam + 1 x bam_isoseq"."""
         if not self.has_rna:
             return [], "none"
-        lines = ([(self.o("02_RNA/align_short", f"{s}.bam"), "bam") for s in self.short_names] +
-                 [(self.o("02_RNA/align_long", f"{s}.bam"), "bam_isoseq") for s in self.long_names])
-        n_sr, n_lr = len(self.short_names), len(self.long_names)
-        summary = " + ".join(f"{n} x {t}" for n, t in ((n_sr, "bam"), (n_lr, "bam_isoseq")) if n)
+        lines = ([([self.o("02_RNA/align_short", f"{r['sample']}.bam")], "bam") for r in self.short if not r["tissue"]] +
+                 [([self.o("02_RNA/align_long", f"{r['sample']}.bam")], "bam_isoseq") for r in self.long if not r["tissue"]])
+        for t, k in self.eviann_groups().items():
+            if k["sr"] and k["lr"]:
+                lines.append(([self.eviann_group_bam(t, "sr"), self.eviann_group_bam(t, "lr")], "bam_mix"))
+            elif k["sr"]:
+                lines.append(([self.eviann_group_bam(t, "sr")], "bam"))
+            else:
+                lines.append(([self.eviann_group_bam(t, "lr")], "bam_isoseq"))
+        n = Counter(tag for _, tag in lines)
+        summary = " + ".join(f"{n[t]} x {t}" for t in ("bam", "bam_isoseq", "bam_mix") if n[t])
         return lines, summary
 
     def transcript_evidence(self):

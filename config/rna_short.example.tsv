@@ -1,2 +1,10 @@
-sample	r1	r2	strandness
-# leaf	data/rna/leaf_R1.fq.gz	data/rna/leaf_R2.fq.gz	RF
+sample	r1	r2	strandness	tissue
+# strandness: unstranded | FR | RF (dUTP libraries such as TruSeq Stranded = RF); single-end: leave r2 empty
+# tissue (optional, also accepted as sample_group): samples with the same value are given to EviAnn as one sample
+#   (their alignments merged), e.g. biological replicates of one tissue. EviAnn counts in how many samples a
+#   transcript is found (lncRNAs >= 2 samples, coding transcripts >= 1/10 of the samples unless TPM >= 100), so many
+#   replicates of few tissues would drop tissue-specific transcripts. Empty = the sample is a sample of its own.
+#   Short and long reads with the same tissue are given together (EviAnn bam_mix). Other steps are not affected.
+# leaf_rep1	data/rna/leaf1_R1.fq.gz	data/rna/leaf1_R2.fq.gz	RF	leaf
+# leaf_rep2	data/rna/leaf2_R1.fq.gz	data/rna/leaf2_R2.fq.gz	RF	leaf
+# root_rep1	data/rna/root1_R1.fq.gz	data/rna/root1_R2.fq.gz	RF	root

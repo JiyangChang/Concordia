@@ -1,7 +1,9 @@
-sample	reads	platform	counts
+sample	reads	platform	counts	tissue
 # counts (optional, Iso-Seq): count table with the full-length read count of every HQ transcript, used when the
 #   FASTA/FASTQ headers carry no full_length_coverage: isoseq cluster's cluster_report.csv or isoseq collapse's
 #   *.flnc_count.txt (or a two-column "id<TAB>count" file). Leave empty for raw reads (CCS/FLNC, ONT): each read counts 1.
-# iso1	data/rna/iso1.hq.fasta.gz	pacbio_isoseq
-# iso2	data/rna/iso2.hq.fastq.gz	pacbio_isoseq	data/rna/iso2.cluster_report.csv
+# tissue (optional, also accepted as sample_group): as in rna_short.tsv; long reads with the same tissue as short-read
+#   samples are given to EviAnn together with them (bam_mix).
+# iso1	data/rna/iso1.hq.fasta.gz	pacbio_isoseq		leaf
+# iso2	data/rna/iso2.hq.fastq.gz	pacbio_isoseq	data/rna/iso2.cluster_report.csv	root
 # ont1	data/rna/ont1.fq.gz	ont_cdna

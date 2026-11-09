@@ -44,7 +44,8 @@ rna:
   #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
   #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
   #   EviAnn：每个样本一行（用该样本自己的比对结果）：短读 bam，长读 bam_isoseq（ONT 为暂定方案）；
-  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）
+  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）；
+  #     样本表可选列 tissue（或 sample_group）：同一组织的样本合并为 EviAnn 的一个样本
   allow_none: false              # true = 允许没有任何 RNA-seq（short、long 都设为 null）。此时 BRAKER4 用 EP 模式（只用蛋白），
                                  #   不运行 EviAnn / StringTie，GeMoMa 不用 RNA 剪接证据；EVM 只整合 BRAKER4、GeMoMa、miniprot；
                                  #   修正步骤所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。

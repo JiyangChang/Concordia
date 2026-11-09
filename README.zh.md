@@ -93,7 +93,9 @@ my_species/
 | 没有 RNA（需 `rna.allow_none: true`） | EP | 不运行 | 无 | 无 | 无：修正只做 R5 证据检查；过滤以蛋白证据代替 RNA 证据；无 UTR / 可变剪接 / lncRNA |
 
 EviAnn 拿到的是每个样本各自的比对结果，每个样本一行（不是合并后的 BAM）：它对每个样本分别组装，lncRNA 只有在
-至少 2 个样本中检测到（TPM ≥ 0.5）才会保留，所以全部 RNA 只有 1 个样本时不会输出 lncRNA。
+至少 2 个样本中检测到（TPM ≥ 0.5）才会保留，编码转录本要在至少 1/10 的样本中检测到（TPM ≥ 100 时除外）；全部 RNA
+只有 1 个样本时不会输出 lncRNA。样本多为少数组织的重复时，填写样本表中可选的 `tissue` 列（或 `sample_group`）：
+同一组织的样本合并后作为一个样本交给 EviAnn，同一组织的短读和长读一起给出（`bam_mix`）。只影响 EviAnn 的输入。
 
 这些选择的逻辑在 `workflow/lib/common.py`，测试在 `tests/test_common.py`。
 

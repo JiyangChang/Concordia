@@ -20,7 +20,8 @@ rna:
   #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
   #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
   #   EviAnn：每个样本一行（用该样本自己的比对结果）：短读 bam，长读 bam_isoseq（ONT 为暂定方案）；
-  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）
+  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）；
+  #     样本表可选列 tissue（或 sample_group）：同一组织的样本合并为 EviAnn 的一个样本
 
 homologs: "tests/data/homologs.tsv"  # 列: name genome gff3 [protein]
 orthodb_proteins: "tests/data/orthodb.fa"

@@ -48,7 +48,8 @@ rna:
   #   PacBio: minimap2 -ax splice:hq -uf; used by BRAKER4 (isoseq_bam), EviAnn, EVM
   #   ONT   : minimap2 -ax splice (drna adds -uf -k14); not used by BRAKER4, only by EviAnn, EVM, refine
   #   EviAnn: one line per sample (its own alignment): short reads bam, long reads bam_isoseq (provisional for ONT);
-  #     lncRNAs need >= 2 samples (EviAnn keeps a lncRNA only when it is found in at least 2 samples)
+  #     lncRNAs need >= 2 samples (EviAnn keeps a lncRNA only when it is found in at least 2 samples);
+  #     optional column tissue (or sample_group) in the sample tables: samples of one tissue form one EviAnn sample
   allow_none: false              # true = allow no RNA-seq at all (set short and long to null). BRAKER4 then runs in EP mode
                                  #   (proteins only), EviAnn / StringTie are not run, GeMoMa uses no RNA splice evidence;
                                  #   EVM integrates BRAKER4, GeMoMa and miniprot only; refinement checks every locus as R5

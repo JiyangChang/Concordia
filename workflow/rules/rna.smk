@@ -119,7 +119,29 @@ rule stringtie:
 
 
 EVIANN_LINES, EVIANN_TAG = P.eviann_reads()
-EVIANN_BAMS = [b for b, _ in EVIANN_LINES]
+EVIANN_BAMS = [b for bams, _ in EVIANN_LINES for b in bams]
+EVIANN_GROUPS = P.eviann_groups()
+
+
+rule eviann_group_bam:
+    """Samples of one tissue (sample-table column tissue / sample_group) merged per read kind, as one EviAnn line."""
+    input:
+        lambda w: EVIANN_GROUPS[w.tissue][w.kind],
+    output:
+        O("02_RNA/EviAnn/groups/{tissue}.{kind}.bam"),
+    params:
+        script=script("02_RNA", "06a_eviann_group_bam.{tissue}.{kind}"),
+    wildcard_constraints:
+        kind="sr|lr",
+    threads: 4
+    log:
+        **logs("02_RNA", "06a_eviann_group_bam.{tissue}.{kind}"),
+    conda:
+        "../envs/core.yaml"
+    shell:
+        SH("""
+        samtools merge -f -@ {threads} -o {output} {input}
+        """, env="core")
 
 
 rule eviann_reads:
@@ -129,12 +151,12 @@ rule eviann_reads:
         O("02_RNA/EviAnn/reads.txt"),
     params:
         script=script("02_RNA", "06_eviann_reads"),
-        lines=" ".join(f"'{b} {t}'" for b, t in EVIANN_LINES),
+        lines=" ".join("'" + " ".join(bams + [t]) + "'" for bams, t in EVIANN_LINES),
     log:
         **logs("02_RNA", "06_eviann_reads"),
     shell:
-        # one line per sample; long reads of ONT are provisionally given as bam_isoseq
-        SH(f"# EviAnn reads file, one line per sample: {EVIANN_TAG}\n" + """
+        # one line per sample, or per tissue (tissue / sample_group); ONT long reads are provisionally bam_isoseq
+        SH(f"# EviAnn reads file, one line per sample or tissue: {EVIANN_TAG}\n" + """
         printf '%s\\n' {params.lines} > {output}
         """)
 

@@ -99,8 +99,11 @@ my_species/
 | no RNA (needs `rna.allow_none: true`) | EP | not run | none | none | none: refinement only checks R5 evidence; the filter uses protein evidence instead of RNA; no UTRs / alternative isoforms / lncRNAs |
 
 EviAnn gets the alignment of every sample on a line of its own (not the merged BAMs): it assembles each sample
-separately and keeps a lncRNA only when it is found in at least 2 samples (TPM >= 0.5), so with a single RNA
-sample in total no lncRNA is reported.
+separately and keeps a lncRNA only when it is found in at least 2 samples (TPM >= 0.5), coding transcripts when
+found in at least 1/10 of the samples (unless TPM >= 100); with a single RNA sample in total no lncRNA is reported.
+With many replicates of few tissues, fill the optional `tissue` column (or `sample_group`) of the sample tables:
+samples of one tissue are merged and given to EviAnn as one sample, short and long reads of one tissue together
+(`bam_mix`). Only EviAnn's input is affected.
 
 The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 
