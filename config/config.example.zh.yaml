@@ -16,7 +16,7 @@ rename_seqids:
 assembly_qc:
   # 基因组组装质量评估（结果在 00_Data/qc/，汇总表 00_Data/qc/assembly_quality.tsv）
   # 默认项：连续性统计（scaffold/contig 两级）、BUSCO 基因组模式（qc.busco_lineages）、端粒检测
-  # 所有评估结果都会写入 07_Report/annotation_report.html 的"基因组组装质量"一节
+  # 所有评估结果都会写入 07_Report/annotation_report_{zh,en}.html 的"基因组组装质量"一节
   gap_min_n: 10                  # 连续 N 不少于该数目视为 gap，在此处把 scaffold 拆成 contig
   # LAI（LTR Assembly Index，Ou et al. 2018, NAR 46:e126）：用 EDTA 鉴定的完整 LTR 和全基因组 RepeatMasker 结果计算，
   #   EDTA 完成后运行（00_Data 的汇总表会等到那时）。参考：draft < 10，reference 10–20，gold ≥ 20。
@@ -43,7 +43,8 @@ rna:
   # platform 取值: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
   #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
   #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
-  #   EviAnn 标签: 短读+长读=bam_mix；仅短读=bam；仅长读(PacBio 或 ONT)=bam_isoseq（ONT 为暂定方案）
+  #   EviAnn：每个样本一行（用该样本自己的比对结果）：短读 bam，长读 bam_isoseq（ONT 为暂定方案）；
+  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）
   allow_none: false              # true = 允许没有任何 RNA-seq（short、long 都设为 null）。此时 BRAKER4 用 EP 模式（只用蛋白），
                                  #   不运行 EviAnn / StringTie，GeMoMa 不用 RNA 剪接证据；EVM 只整合 BRAKER4、GeMoMa、miniprot；
                                  #   修正步骤所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。

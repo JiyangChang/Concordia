@@ -29,7 +29,7 @@ several homologous species, the workflow runs the following steps and ends with 
 | `04_Homology` | Homology projection and protein alignment: GeMoMa and miniprot per homologous species (each with BUSCO / OMArk), then merged (GeMoMa GAF; miniprot concatenated) for EVM | GeMoMa, miniprot |
 | `05_EVM` | EVM integration → refinement (R1–R6) → TE / length filter → chromosome-based names (e.g. `Mol01G000010`) → original sequence names restored → export; BUSCO / OMArk / AGAT of every source | EVidenceModeler 2.1 (Rust version optional), AGAT, TEsorter |
 | `06_Function` | Domains, GO, KEGG, COG (complete InterProScan result `interproscan/<prefix>.interproscan.{tsv,gff3}`, eggNOG `eggnog/`, combined table `merged/`) | InterProScan, eggNOG-mapper |
-| `07_Report` | `annotation_report.html`: tables and figures for every step | Python |
+| `07_Report` | `annotation_report_en.html` (English) and `annotation_report_zh.html` (Chinese): tables and figures for every step, same content | Python |
 
 **Workflow diagrams:**
 - `docs/workflow_main.png` / `.svg`: main workflow (with RNA-seq) grouped by the 00–07 directories, without QC and statistics steps; an arrow means "reads the output of", and every direct dependency is drawn.
@@ -89,14 +89,18 @@ my_species/
 
 ## Choices made from the data
 
-| Data | BRAKER4 | EviAnn tag | EVM transcript evidence | GeMoMa RNA evidence | RNA support in refinement |
+| Data | BRAKER4 | EviAnn input (one line per sample) | EVM transcript evidence | GeMoMa RNA evidence | RNA support in refinement |
 |---|---|---|---|---|---|
-| short + PacBio (+ONT) | dual | bam_mix | long-read StringTie | short-read BAM | long-read intron chains |
-| short + ONT | ETP (ONT not used) | bam_mix | long-read StringTie | short-read BAM | long-read intron chains |
+| short + PacBio (+ONT) | dual | short: bam; long: bam_isoseq | long-read StringTie | short-read BAM | long-read intron chains |
+| short + ONT | ETP (ONT not used) | short: bam; ONT: bam_isoseq (provisional) | long-read StringTie | short-read BAM | long-read intron chains |
 | short reads only | ETP | bam | short-read StringTie | short-read BAM | short reads: junction reads (B) + StringTie intron chain (A) + single exon (C) |
 | PacBio only | IsoSeq | bam_isoseq | long-read StringTie | none (long reads optional) | long-read intron chains |
 | ONT only | EP | bam_isoseq (provisional) | long-read StringTie | none (long reads optional) | long-read intron chains |
 | no RNA (needs `rna.allow_none: true`) | EP | not run | none | none | none: refinement only checks R5 evidence; the filter uses protein evidence instead of RNA; no UTRs / alternative isoforms / lncRNAs |
+
+EviAnn gets the alignment of every sample on a line of its own (not the merged BAMs): it assembles each sample
+separately and keeps a lncRNA only when it is found in at least 2 samples (TPM >= 0.5), so with a single RNA
+sample in total no lncRNA is reported.
 
 The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 

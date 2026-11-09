@@ -330,15 +330,18 @@ class Project:
         return bam, iso
 
     def eviann_reads(self):
-        """(list of BAM paths, EviAnn tag). Only-ONT is provisionally treated as bam_isoseq."""
-        merged = self.o("02_RNA/merged")
+        """(lines, summary) of EviAnn's reads file: one line per sample, as EviAnn expects (it assembles every
+        sample separately and counts in how many samples each transcript is found; lncRNAs must be found in at
+        least 2 samples, so merged BAMs would give no lncRNA at all). Short-read samples: their HISAT2 BAM,
+        tag bam; long-read samples (PacBio, provisionally ONT): their minimap2 BAM, tag bam_isoseq.
+        lines = [(bam path, tag), ...]; summary e.g. "6 x bam + 1 x bam_isoseq"."""
         if not self.has_rna:
             return [], "none"
-        if self.has_short and self.has_long:
-            return [os.path.join(merged, "sr.bam"), os.path.join(merged, "lr.bam")], "bam_mix"
-        if self.has_short:
-            return [os.path.join(merged, "sr.bam")], "bam"
-        return [os.path.join(merged, "lr.bam")], "bam_isoseq"
+        lines = ([(self.o("02_RNA/align_short", f"{s}.bam"), "bam") for s in self.short_names] +
+                 [(self.o("02_RNA/align_long", f"{s}.bam"), "bam_isoseq") for s in self.long_names])
+        n_sr, n_lr = len(self.short_names), len(self.long_names)
+        summary = " + ".join(f"{n} x {t}" for n, t in ((n_sr, "bam"), (n_lr, "bam_isoseq")) if n)
+        return lines, summary
 
     def transcript_evidence(self):
         """(stringtie source name, bam group, long-read mode?) for EVM TRANSCRIPT evidence;
@@ -359,9 +362,6 @@ class Project:
             use["sr"].append("BRAKER4 (bam_files)")
         if iso:
             use["pacbio"].append("BRAKER4 (isoseq_bam)")
-        ev_bams, tag = self.eviann_reads()
-        for b in ev_bams:
-            use[os.path.basename(b)[:-4]].append(f"EviAnn ({tag})")
         tx_src, tx_group, _ = self.transcript_evidence()
         use[tx_group].append(f"StringTie -> EVM TRANSCRIPT ({tx_src})")
         ere = self.gemoma_ere_bam()

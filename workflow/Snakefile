@@ -140,4 +140,5 @@ rule all:
         O("05_EVM/qc/summary.tsv"),
         O("00_Data/qc/assembly_quality.tsv"),
         O("06_Function/merged", f"{PREFIX}.func.gff3"),
-        O("07_Report/annotation_report.html"),
+        O("07_Report/annotation_report_zh.html"),
+        O("07_Report/annotation_report_en.html"),

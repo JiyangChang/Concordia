@@ -29,19 +29,21 @@ def make(tmp_path, short=True, pacbio=False, ont=False, **extra):
     return Project(cfg, str(tmp_path))
 
 
-@pytest.mark.parametrize("short,pacbio,ont,mode,tag", [
-    (True, True, True, "dual", "bam_mix"),
-    (True, True, False, "dual", "bam_mix"),
-    (True, False, True, "ETP", "bam_mix"),      # ONT never goes to BRAKER4
-    (True, False, False, "ETP", "bam"),
-    (False, True, False, "IsoSeq", "bam_isoseq"),
-    (False, False, True, "EP", "bam_isoseq"),   # only-ONT: provisional bam_isoseq
-    (False, True, True, "IsoSeq", "bam_isoseq"),
+@pytest.mark.parametrize("short,pacbio,ont,mode,tags", [
+    (True, True, True, "dual", ["bam", "bam_isoseq", "bam_isoseq"]),
+    (True, True, False, "dual", ["bam", "bam_isoseq"]),
+    (True, False, True, "ETP", ["bam", "bam_isoseq"]),      # ONT never goes to BRAKER4
+    (True, False, False, "ETP", ["bam"]),
+    (False, True, False, "IsoSeq", ["bam_isoseq"]),
+    (False, False, True, "EP", ["bam_isoseq"]),             # only-ONT: provisional bam_isoseq
+    (False, True, True, "IsoSeq", ["bam_isoseq", "bam_isoseq"]),
 ])
-def test_modes(tmp_path, short, pacbio, ont, mode, tag):
+def test_modes(tmp_path, short, pacbio, ont, mode, tags):
     p = make(tmp_path, short, pacbio, ont)
     assert p.braker4_mode() == mode
-    assert p.eviann_reads()[1] == tag
+    lines, _ = p.eviann_reads()
+    assert [t for _, t in lines] == tags                    # one EviAnn line per sample, per-sample BAMs
+    assert all("/02_RNA/align_" in b and "/merged/" not in b for b, _ in lines)
     bam, iso = p.braker4_bams()
     assert bool(iso) == pacbio and (not iso or iso.endswith("pacbio.bam"))
     assert bool(bam) == short
@@ -105,14 +107,14 @@ def test_gemoma_ere(tmp_path):
 
 def test_bam_usage(tmp_path):
     u = make(tmp_path, short=True, pacbio=True, ont=True).bam_usage()
-    assert u["sr"] == ["BRAKER4 (bam_files)", "EviAnn (bam_mix)", "GeMoMa ERE"]
+    assert u["sr"] == ["BRAKER4 (bam_files)", "GeMoMa ERE"]          # EviAnn uses the per-sample BAMs
     assert u["pacbio"] == ["BRAKER4 (isoseq_bam)"]
-    assert u["lr"] == ["EviAnn (bam_mix)", "StringTie -> EVM TRANSCRIPT (LR_stringtie)"]
+    assert u["lr"] == ["StringTie -> EVM TRANSCRIPT (LR_stringtie)"]
     assert u["ont"] == ["merged into lr.bam (not used by BRAKER4)"]
     u = make(tmp_path, short=True).bam_usage()
-    assert u == {"sr": ["BRAKER4 (bam_files)", "EviAnn (bam)", "StringTie -> EVM TRANSCRIPT (SR_stringtie)", "GeMoMa ERE"]}
+    assert u == {"sr": ["BRAKER4 (bam_files)", "StringTie -> EVM TRANSCRIPT (SR_stringtie)", "GeMoMa ERE"]}
     u = make(tmp_path, short=False, ont=True).bam_usage()
-    assert u["lr"] == ["EviAnn (bam_isoseq)", "StringTie -> EVM TRANSCRIPT (LR_stringtie)"]
+    assert u["lr"] == ["StringTie -> EVM TRANSCRIPT (LR_stringtie)"]
 
 
 def test_evm_grid(tmp_path):

@@ -210,7 +210,7 @@ need to be set up in this script.
   `bash results/<step directory>/scripts/<script>.sh`.
 - **Results**: final annotation `results/05_EVM/final/`, functional annotation `results/06_Function/merged/`
   (complete InterProScan result in `06_Function/interproscan/`, eggNOG in `06_Function/eggnog/`), report
-  `results/07_Report/annotation_report.html`.
+  `results/07_Report/annotation_report_en.html` (Chinese: `annotation_report_zh.html`).
 
 ## 9. BRAKER4 `executor`
 

@@ -139,7 +139,7 @@ def render_dir(tmp_path, out):
     html_ = str(tmp_path / "r.html")
     r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
                         "--braker4-mode", "dual", "--eviann-tag", "bam_mix", "--config", f"{out}/cfg.yaml",
-                        "--out", html_], capture_output=True, text=True)
+                        "--out-zh", html_], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     return open(html_).read()
 
@@ -151,7 +151,7 @@ def render(tmp_path, **kw):
     r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
                         "--braker4-mode", "dual", "--eviann-tag", "bam_mix", "--config", f"{out}/cfg.yaml",
                         "--eviann-proteins", "SWISSPROT_SET", "--homologs", "REF_SPECIES_A",
-                        "--out", html], capture_output=True, text=True)
+                        "--out-zh", html], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     return open(html).read()
 
@@ -267,7 +267,7 @@ def test_refine_rules_details_use_config_values(tmp_path):
     html_ = str(tmp_path / "r.html")
     r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
                         "--braker4-mode", "dual", "--eviann-tag", "bam_mix", "--config", f"{out}/cfg.yaml",
-                        "--out", html_], capture_output=True, text=True)
+                        "--out-zh", html_], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     h = open(html_).read()
     assert "修正规则详解" in h and "min_cds_aa = 80" in h and "min_lr_support = 2" in h   # config value / default
@@ -297,7 +297,7 @@ def test_no_rna_banner_and_sections(tmp_path):
     build(out)
     html_ = str(tmp_path / "r.html")
     r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
-                        "--braker4-mode", "EP", "--eviann-tag", "none", "--no-rna", "--out", html_,
+                        "--braker4-mode", "EP", "--eviann-tag", "none", "--no-rna", "--out-zh", html_,
                         "--config", f"{out}/cfg.yaml"], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     h = open(html_).read()
@@ -318,3 +318,33 @@ def test_long_read_weights_warning(tmp_path):
     h = render_dir(tmp_path, out)
     assert "长读的全长 reads 权重" in h and "Iso-Seq 样本 isoA 没有任何一条记录带全长 reads 数" in h
     assert "isoB 没有" not in h
+
+
+def render_both(tmp_path):
+    out = str(tmp_path / "res")
+    build(out)
+    zh, en = str(tmp_path / "annotation_report_zh.html"), str(tmp_path / "annotation_report_en.html")
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
+                        "--braker4-mode", "dual", "--eviann-tag", "6 x bam + 1 x bam_isoseq", "--config",
+                        f"{out}/cfg.yaml", "--eviann-proteins", "swissprot", "--homologs", "REF_SPECIES_A",
+                        "--out-zh", zh, "--out-en", en], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return open(zh).read(), open(en).read()
+
+
+def test_english_report(tmp_path):
+    zh, en = render_both(tmp_path)
+    assert "<html lang='en'>" in en and "<html lang='zh'>" in zh
+    # same data, same sections and figures in both versions
+    assert re.findall(r"<section id='([^']+)'>", zh) == re.findall(r"<section id='([^']+)'>", en)
+    assert zh.count("<figure>") == en.count("<figure>") > 3
+    assert [int(x) for x in re.findall(r"<b>Figure (\d+)\. ", en)] == list(range(1, en.count("<figure>") + 1))
+    for needle in ["Genome assembly quality", "Refinement rules in detail", "Weight tuning", "Best set <b>c07</b>",
+                   "UniProt-SwissProt (eviann.swissprot)", "6 x bam + 1 x bam_isoseq", "Contents"]:
+        assert needle in en, needle
+    assert "UniProt-SwissProt（eviann.swissprot）" in zh
+    # links to each other
+    assert "href='annotation_report_zh.html'" in en and "href='annotation_report_en.html'" in zh
+    # no Chinese left in the English version (apart from the link to the Chinese one; data tables excluded)
+    text = re.sub(r"<pre>.*?</pre>|src='data:[^']*'", "", en, flags=re.S).replace("中文版", "")
+    assert not re.search(r"[一-鿿　-〿＀-￯]", re.sub(r"<[^>]+>", " ", text))

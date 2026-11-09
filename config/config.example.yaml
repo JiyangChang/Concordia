@@ -18,7 +18,7 @@ rename_seqids:
 assembly_qc:
   # Genome assembly quality assessment (results in 00_Data/qc/, summary table 00_Data/qc/assembly_quality.tsv)
   # Default items: contiguity (scaffold and contig level), BUSCO genome mode (qc.busco_lineages), telomeres
-  # All results appear in the "genome assembly quality" section of 07_Report/annotation_report.html
+  # All results appear in the "genome assembly quality" section of 07_Report/annotation_report_{en,zh}.html
   gap_min_n: 10                  # runs of >= this many N are gaps; scaffolds are split into contigs there
   # LAI (LTR Assembly Index, Ou et al. 2018, NAR 46:e126): computed from EDTA's intact LTRs and the
   #   whole-genome RepeatMasker output, after EDTA has finished (the 00_Data summary waits for it).
@@ -47,7 +47,8 @@ rna:
   # platform values: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
   #   PacBio: minimap2 -ax splice:hq -uf; used by BRAKER4 (isoseq_bam), EviAnn, EVM
   #   ONT   : minimap2 -ax splice (drna adds -uf -k14); not used by BRAKER4, only by EviAnn, EVM, refine
-  #   EviAnn tag: short + long = bam_mix; short only = bam; long only (PacBio or ONT) = bam_isoseq (provisional for ONT)
+  #   EviAnn: one line per sample (its own alignment): short reads bam, long reads bam_isoseq (provisional for ONT);
+  #     lncRNAs need >= 2 samples (EviAnn keeps a lncRNA only when it is found in at least 2 samples)
   allow_none: false              # true = allow no RNA-seq at all (set short and long to null). BRAKER4 then runs in EP mode
                                  #   (proteins only), EviAnn / StringTie are not run, GeMoMa uses no RNA splice evidence;
                                  #   EVM integrates BRAKER4, GeMoMa and miniprot only; refinement checks every locus as R5

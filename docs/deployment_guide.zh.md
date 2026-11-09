@@ -186,7 +186,7 @@ $SM --profile $A/profiles/local data_qc
 - **断点续跑：** 重新运行同一命令即可。
 - **排查某一步：** 看 `<步骤目录>/logs/` 中的 `.err`，再激活脚本头部写明的环境，`bash <步骤目录>/scripts/<编号>_<rule>.sh` 单独重跑。
 - **完整示例：** 在 SLURM 集群上从部署到提交的完整步骤见 `example_slurm.zh.md`。
-- **结果：** `<outdir>/05_EVM/final/` 是最终注释，`<outdir>/07_Report/annotation_report.html` 是统计报告。
+- **结果：** `<outdir>/05_EVM/final/` 是最终注释，`<outdir>/07_Report/annotation_report_zh.html`（英文版 `annotation_report_en.html`） 是统计报告。
 
 ## 8. 常见问题
 

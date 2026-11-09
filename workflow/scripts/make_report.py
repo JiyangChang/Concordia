@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""07_Report: build a self-contained HTML report (text + tables + figures) from all steps.
+"""07_Report: build a self-contained HTML report (text + tables + figures) from all steps, in Chinese and English.
 
-Skeleton (v0.3): genome / renaming, repeat summary, BRAKER4 mode, QC comparison (BUSCO figure),
-refine decisions, filtering, function annotation rates, software versions and script index.
+  make_report.py --outdir <results> ... --out-zh annotation_report_zh.html --out-en annotation_report_en.html
+
+Both versions come from the same data in one run; all text is given as L("中文", "English") pairs.
 Each section is skipped gracefully when its input does not exist.
 """
 import argparse
@@ -23,6 +24,14 @@ try:
 except ImportError:  # report still renders, without figures
     plt = None
 
+LANG = "zh"     # language of the report being built (set per output in main)
+
+
+def L(zh, en):
+    """Text in the language of the report being built."""
+    return zh if LANG == "zh" else en
+
+
 CSS = """
 :root{--bg:#fff;--fg:#1d2433;--muted:#5b6475;--line:#d9dde5;--accent:#2f6fb0;--card:#f6f8fb}
 @media (prefers-color-scheme: dark){:root{--bg:#14171d;--fg:#e6e9ef;--muted:#9aa3b2;--line:#2c323d;--accent:#7fb0e6;--card:#1b1f27}}
@@ -37,6 +46,7 @@ nav.side a:hover{background:var(--card)}
 nav.side a.active{background:var(--card);color:var(--accent);border-left-color:var(--accent);font-weight:600}
 nav.side .step{display:block;font-size:11px;color:var(--muted);font-weight:400}
 nav.side .top{margin-top:12px;font-size:12px;color:var(--muted)}
+nav.side .lang{margin:0 0 12px 8px;font-size:12px}
 main{max-width:1100px;margin:0 auto;padding:24px 24px 64px;min-width:0}
 section{scroll-margin-top:12px}
 @media (max-width:900px){.layout{display:block}
@@ -108,15 +118,18 @@ def read_tsv_ws(path):
 
 def table(header, rows, limit=200):
     if not header:
-        return "<p class='muted'>（无数据）</p>"
+        return "<p class='muted'>" + L("（无数据）", "(no data)") + "</p>"
     h = "".join(f"<th>{html.escape(c.lstrip('#'))}</th>" for c in header)
     b = "".join("<tr>" + "".join(f"<td>{html.escape(str(c))}</td>" for c in r) + "</tr>" for r in rows[:limit])
-    more = f"<p class='muted'>仅显示前 {limit} 行，共 {len(rows)} 行。</p>" if len(rows) > limit else ""
+    more = ("<p class='muted'>" + L(f"仅显示前 {limit} 行，共 {len(rows)} 行。",
+                                    f"Only the first {limit} of {len(rows)} rows are shown.") + "</p>"
+            if len(rows) > limit else "")
     return f"<div class='tbl'><table><thead><tr>{h}</tr></thead><tbody>{b}</tbody></table></div>{more}"
 
 
 def fig_to_img(fig, figdir, name, caption=""):
-    """Embed a figure; caption = (title, explanation) or text, shown as "图 N. title explanation"."""
+    """Embed a figure; caption = (title, explanation) or text, shown as "Figure N. title explanation".
+    Figures carry English labels only, so both language versions share the PNG files in figures/."""
     os.makedirs(figdir, exist_ok=True)
     fig.savefig(os.path.join(figdir, name + ".png"), dpi=150, bbox_inches="tight")
     buf = io.BytesIO()
@@ -124,8 +137,10 @@ def fig_to_img(fig, figdir, name, caption=""):
     plt.close(fig)
     img = f"<img alt='{name}' src='data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}'>"
     title, text = caption if isinstance(caption, tuple) else ("", caption)
-    cap = (f"<figcaption><b>图 {FIG_MARK}. {html.escape(title)}</b> {html.escape(text)} "
-           f"<span class='muted'>（{html.escape(name)}.png）</span></figcaption>")
+    lab = L("图", "Figure")
+    paren = L(f"（{html.escape(name)}.png）", f"({html.escape(name)}.png)")
+    cap = (f"<figcaption><b>{lab} {FIG_MARK}. {html.escape(title)}</b> {html.escape(text)} "
+           f"<span class='muted'>{paren}</span></figcaption>")
     return f"<figure>{img}{cap}</figure>"
 
 
@@ -164,8 +179,12 @@ def busco_figure(header, rows, figdir, name="busco_comparison", caption=""):
     ax.set_xlim(0, 112); ax.set_xticks(range(0, 101, 20)); ax.set_xlabel("BUSCO (%)"); ax.invert_yaxis()
     legend_below(ax, ncol=4)
     return fig_to_img(fig, figdir, name, caption or (
-        "BUSCO 评估。", "每行一个注释来源（或基因组）× 一个 BUSCO 数据集；条形按单拷贝完整（S）、重复完整（D）、"
-        "片段（F）、缺失（M）的百分比堆叠，右侧为完整度 C = S + D。"))
+        L("BUSCO 评估。", "BUSCO assessment."),
+        L("每行一个注释来源（或基因组）× 一个 BUSCO 数据集；条形按单拷贝完整（S）、重复完整（D）、"
+          "片段（F）、缺失（M）的百分比堆叠，右侧为完整度 C = S + D。",
+          "One row per annotation source (or the genome) x BUSCO dataset; bars stack the percentages of complete "
+          "single-copy (S), complete duplicated (D), fragmented (F) and missing (M) BUSCOs; completeness C = S + D "
+          "is shown on the right.")))
 
 
 def bar_figure(labels, values, xlabel, figdir, name, caption="", colors=None, legend=None, wrap=0, values_text=None):
@@ -257,15 +276,22 @@ def distribution_figure(dist, figdir, name, what=""):
         ax.set_ylabel("% of transcripts")
     axes[0].legend(frameon=False, fontsize=8)
     f.tight_layout()
-    iso_txt = ("左：每个基因的转录本数（1、2、3、4、≥5 个）占基因的百分比；" if iso_sets else
-               "（每个基因只有一个转录本，不画转录本数分布。）")
+    iso_txt = (L("左：每个基因的转录本数（1、2、3、4、≥5 个）占基因的百分比；",
+                 "Left: transcripts per gene (1, 2, 3, 4, ≥5) as % of genes; ") if iso_sets else
+               L("（每个基因只有一个转录本，不画转录本数分布。）",
+                 "(One transcript per gene: no transcripts-per-gene panel.) "))
     return fig_to_img(f, figdir, name, (
-        f"{what}基因结构分布。",
-        iso_txt + "中：每个转录本的外显子数；右：CDS 长度（氨基酸）。后两幅为各注释集内转录本的百分比，"
-        "便于比较规模不同的注释集；超过上限的值计入最后一格。"))
+        L(f"{what}基因结构分布。", f"Gene structure distributions of the {what}."),
+        iso_txt + L("中：每个转录本的外显子数；右：CDS 长度（氨基酸）。后两幅为各注释集内转录本的百分比，"
+                    "便于比较规模不同的注释集；超过上限的值计入最后一格。",
+                    "middle: exons per transcript; right: CDS length (amino acids). The last two show % of the "
+                    "transcripts of each set, so that sets of different size can be compared; values above the limit "
+                    "are counted in the last bin.")))
 
 
-REF_COMPARE_HELP = """
+def ref_compare_help():
+    if LANG == "zh":
+        return """
 <details open><summary><b>指标说明</b></summary>
 <p>比较只看 CDS（编码区），不看 UTR：很多参考注释（尤其是 AUGUSTUS 等预测得到的）没有 UTR，比较 UTR 会把注释方式的差别误当成错误。
 参考注释只取本次分析的序列，序列名按 <code>seqid_map.tsv</code> 换成流程内部名后再比较；所有比较都要求在同一条链上。</p>
@@ -283,8 +309,29 @@ REF_COMPARE_HELP = """
 主结果每个基因只保留一个转录本，参考注释若含多个异构体，其余异构体会拉低 tx_recall_%；相反，含全部异构体的注释集（如 refine）会拉低 tx_precision_%。
 <b>参考注释本身也是预测结果时，这些数值反映的是两者的一致程度而不是准确率</b>，不一致处可能是任何一方的错误。</p>
 </details>"""
+    return """
+<details open><summary><b>Metrics</b></summary>
+<p>Only CDS (coding regions) are compared, not UTRs: many reference annotations (especially predictions such as AUGUSTUS) have no UTRs, and comparing UTRs would count differences in annotation style as errors.
+Only the sequences of this analysis are taken from the reference, with sequence names converted to the internal names via <code>seqid_map.tsv</code>; every comparison requires the same strand.</p>
+<table><thead><tr><th>Column</th><th>Meaning</th><th>How it is computed</th></tr></thead><tbody>
+<tr><td>ref_genes / pred_genes</td><td>coding genes in the reference / in the annotation set</td><td>only genes with a CDS</td></tr>
+<tr><td>gene_recall_%</td><td>share of reference genes found (lenient)</td><td>reference genes with any CDS segment overlapping any CDS of the set by ≥ 1 bp on the same strand</td></tr>
+<tr><td>gene_precision_%</td><td>share of predicted genes with a reference counterpart (lenient)</td><td>the reverse: predicted genes overlapping a reference CDS on the same strand. Low values mean many genes absent from the reference (new genes, false positives or genes missing from the reference)</td></tr>
+<tr><td>intron_recall_%</td><td>accuracy of splice sites</td><td>reference CDS introns (intervals between adjacent CDS segments of a transcript, unique by sequence + strand + start + end) predicted exactly; 1 bp off does not count</td></tr>
+<tr><td>intron_precision_%</td><td>reliability of predicted introns</td><td>predicted CDS introns identical to a reference intron</td></tr>
+<tr><td>tx_recall_%</td><td>accuracy of complete coding structures (strictest)</td><td>reference transcripts whose complete CDS structure (coordinates of all CDS segments, including start and stop; unique structures) is predicted exactly; any different exon border does not count. Single-exon genes are included</td></tr>
+<tr><td>tx_precision_%</td><td>share of predicted complete structures identical to the reference</td><td>predicted transcripts whose complete CDS structure is identical to a reference one</td></tr>
+</tbody></table>
+<p><b>Reading:</b> gene-level metrics only require an overlap ("was the gene found"); intron level shows whether splice sites are exact; transcript level requires the whole coding structure to be identical and is usually lowest.
+High recall with low precision means a set predicts many genes or structures absent from the reference; the reverse means it is conservative.
+The main result keeps one transcript per gene: other isoforms of a reference with several isoforms lower tx_recall_%; conversely, a set with all isoforms (such as refine) lowers tx_precision_%.
+<b>When the reference is itself a prediction, these values measure agreement, not accuracy</b>; a disagreement may be an error of either side.</p>
+</details>"""
 
-TUNE_HELP = """
+
+def tune_help():
+    if LANG == "zh":
+        return """
 <details open><summary><b>原理</b></summary>
 <p>EVM 按权重把各来源的证据（从头预测、同源投射、RNA 注释、蛋白比对、转录本组装）整合成一个共识模型，权重决定了冲突时更相信哪个来源。
 配置中的默认权重是经验值，不一定适合当前物种和数据，所以流程在一条序列上用不同权重各跑一次 EVM，用原始证据给结果打分，选出最好的一组用于全基因组。</p>
@@ -303,6 +350,26 @@ TUNE_HELP = """
 </ol>
 <p><b>注意：</b>miniprot 比对和转录本组装本身也是 EVM 的输入，打分会略偏向给这两类证据较高权重的组合；只用一条序列打分，结果对全基因组有代表性但不完全等同。
 各组 F 相差很小（例如 &lt; 0.005）时，可以认为这些权重效果相当，基线权重也是合理的选择。</p>
+</details>"""
+    return """
+<details open><summary><b>Principle</b></summary>
+<p>EVM combines the evidence of all sources (ab initio prediction, homology projection, RNA-based annotation, protein alignments, transcript assemblies) into consensus models according to weights; the weights decide which source is trusted more in a conflict.
+The default weights in the configuration are rules of thumb and may not suit the species and data, so the workflow runs EVM once per weight set on one sequence, scores each result against the raw evidence, and uses the best set for the whole genome.</p>
+<ol>
+<li><b>Tuning region:</b> <code>evm.tune.region</code>, by default (auto) the longest sequence; all EVM inputs are cut to this sequence.</li>
+<li><b>Candidate weights:</b> c00 = the weights of the configuration (baseline); the others are all combinations of the candidate values in <code>evm.tune.grid</code> (sources not in the grid keep their baseline value; duplicate combinations are removed).</li>
+<li><b>Scores</b> (of the EVM result of each weight set):
+<ul>
+<li><b>P (precision)</b>: share of multi-exon transcripts whose CDS intron chain is <b>exactly</b> confirmed by any independent evidence: long reads (introns of the read within the model identical to the model, weighted by full-length reads, reaching <code>refine.min_lr_support</code>);
+without long reads, short reads (same criteria as the refinement: junction reads for 1 intron, plus an identical StringTie chain for ≥ 2 introns); or an identical miniprot protein alignment.
+"Any" evidence is required so that species-specific genes with RNA evidence but no homologous protein are not penalised.</li>
+<li><b>R (recall)</b>: share of evidence sites covered by EVM models, the mean of the available items: spliced long reads overlapping an EVM CDS; miniprot alignments with identity ≥ 0.8 overlapping an EVM CDS on the same strand.</li>
+<li><b>F = 2PR / (P + R)</b>, the harmonic mean of P and R. Weights favouring one source may add many genes (R up, P down) or lose genes (P up, R down); F balances the two.</li>
+</ul></li>
+<li><b>Choice:</b> the set with the highest F; ties go to the higher P, then to the lower number. With <code>evm.tune.use_best: true</code> the whole-genome EVM uses this set (table below); otherwise the result is only reported and the configured weights are used.</li>
+</ol>
+<p><b>Note:</b> miniprot alignments and transcript assemblies are EVM inputs themselves, so the scores slightly favour sets that weight these two higher; scoring on one sequence is representative of, but not identical to, the whole genome.
+When the F values differ very little (e.g. &lt; 0.005), the weight sets perform equally and the baseline is a reasonable choice as well.</p>
 </details>"""
 
 
@@ -331,56 +398,104 @@ def refine_rules_html(config_path):
     v = dict(REFINE_DEFAULTS)
     v.update({k: x for k, x in config_section(config_path, "refine").items() if k in REFINE_DEFAULTS})
     row = lambda *c: "<tr>" + "".join(f"<td>{x}</td>" for x in c) + "</tr>"
+    unsup = (L("删除", "removed") if v["remove_unsupported_evm"] == "true"
+             else L("保留并标记 refine_support=none", "kept and marked refine_support=none"))
     rules = "".join([
-        row("R1", "1 个 EVM 基因 : 1 个 EviAnn 基因，EviAnn 有一条转录本的 CDS 内含子链与 EVM 完全相同",
-            "保留 EVM 的 CDS；外显子和 UTR 取自这条 EviAnn 转录本；EviAnn 的其它完整转录本（完整 ORF ≥ min_cds_aa）作为异构体加入"
-            f"（import_utr_isoforms = {v['import_utr_isoforms']}）。若 EVM 的 CDS 不落在 EviAnn 外显子内，只保留 EVM。不依赖 RNA 支持"),
-        row("R2", "只有 EviAnn 基因，没有重叠的 EVM 基因",
-            f"同时满足才加入：① 有完整 ORF ≥ {v['min_cds_aa']} aa；② 有 RNA 证据（与 StringTie 转录本重叠，或"
-            f"按下表“被支持”）；③ CDS 与 TE 重叠 ≤ {v['max_te_overlap']}。否则跳过（skip）"),
-        row("R3", "1 : 1，但 CDS 内含子链不同",
-            "EviAnn 有被支持的完整转录本、EVM 不被支持 → 用 EviAnn 替换（replace_with_eviann）；两者都被支持 → 保留 EVM，"
-            "并把被支持的 EviAnn 转录本加为异构体（keep_evm+eviann_isoforms）；其它 → 保留 EVM"),
-        row("R4 拆分", "1 个 EVM 基因 : 多个 EviAnn 基因",
-            "每个 EviAnn 基因都有被支持的转录本、且没有 reads 把它们连起来 → 用这些 EviAnn 基因替换；有 reads 连接 → 保留 EVM"
-            "（说明确实是一个基因）；其它 → 保留 EVM，标记 refine_support=needs_review"),
-        row("R4 融合", "多个 EVM 基因 : 1 个 EviAnn 基因",
-            "EviAnn 有被支持、且 CDS 覆盖所有这些 EVM 基因的转录本 → 用 EviAnn 替换；否则保留 EVM，标记 needs_review"),
-        row("R4 复杂", "多 : 多", "保留 EVM，标记 needs_review"),
-        row("R5", "只有 EVM 基因，没有重叠的 EviAnn 编码基因",
-            "有以下任一证据则保留并记录在 refine_support：蛋白（miniprot / GeMoMa 的 CDS 同链重叠）、RNA（StringTie 重叠或“被支持”）、"
-            "BRAKER4 gene_support 的 RNA 支持；都没有 → "
-            + ("删除" if v["remove_unsupported_evm"] == "true" else "保留并标记 refine_support=none")
-            + f"（remove_unsupported_evm = {v['remove_unsupported_evm']}）"),
-        row("R6", "EviAnn 的 lncRNA", "在更早的步骤已分出，单独输出为 lncRNA 文件，不参与修正"),
+        row("R1", L("1 个 EVM 基因 : 1 个 EviAnn 基因，EviAnn 有一条转录本的 CDS 内含子链与 EVM 完全相同",
+                    "1 EVM gene : 1 EviAnn gene, one EviAnn transcript has a CDS intron chain identical to EVM"),
+            L("保留 EVM 的 CDS；外显子和 UTR 取自这条 EviAnn 转录本；EviAnn 的其它完整转录本（完整 ORF ≥ min_cds_aa）作为异构体加入"
+              f"（import_utr_isoforms = {v['import_utr_isoforms']}）。若 EVM 的 CDS 不落在 EviAnn 外显子内，只保留 EVM。不依赖 RNA 支持",
+              "EVM's CDS is kept; exons and UTRs come from that EviAnn transcript; the other complete EviAnn transcripts "
+              f"(complete ORF ≥ min_cds_aa) are added as isoforms (import_utr_isoforms = {v['import_utr_isoforms']}). "
+              "If EVM's CDS does not fall within the EviAnn exons, only EVM is kept. Does not depend on RNA support")),
+        row("R2", L("只有 EviAnn 基因，没有重叠的 EVM 基因", "EviAnn gene only, no overlapping EVM gene"),
+            L(f"同时满足才加入：① 有完整 ORF ≥ {v['min_cds_aa']} aa；② 有 RNA 证据（与 StringTie 转录本重叠，或"
+              f"按下表“被支持”）；③ CDS 与 TE 重叠 ≤ {v['max_te_overlap']}。否则跳过（skip）",
+              f"Added only when all hold: (1) a complete ORF ≥ {v['min_cds_aa']} aa; (2) RNA evidence (overlap with a "
+              f"StringTie transcript, or \"supported\" as in the table below); (3) CDS overlap with TEs ≤ "
+              f"{v['max_te_overlap']}. Otherwise skipped (skip)")),
+        row("R3", L("1 : 1，但 CDS 内含子链不同", "1 : 1, but different CDS intron chains"),
+            L("EviAnn 有被支持的完整转录本、EVM 不被支持 → 用 EviAnn 替换（replace_with_eviann）；两者都被支持 → 保留 EVM，"
+              "并把被支持的 EviAnn 转录本加为异构体（keep_evm+eviann_isoforms）；其它 → 保留 EVM",
+              "EviAnn has a supported complete transcript and EVM is not supported → replaced by EviAnn "
+              "(replace_with_eviann); both supported → EVM kept and the supported EviAnn transcripts added as isoforms "
+              "(keep_evm+eviann_isoforms); otherwise → EVM kept")),
+        row(L("R4 拆分", "R4 split"), L("1 个 EVM 基因 : 多个 EviAnn 基因", "1 EVM gene : several EviAnn genes"),
+            L("每个 EviAnn 基因都有被支持的转录本、且没有 reads 把它们连起来 → 用这些 EviAnn 基因替换；有 reads 连接 → 保留 EVM"
+              "（说明确实是一个基因）；其它 → 保留 EVM，标记 refine_support=needs_review",
+              "every EviAnn gene has a supported transcript and no reads connect them → replaced by these EviAnn genes; "
+              "connecting reads → EVM kept (it is one gene); otherwise → EVM kept and marked refine_support=needs_review")),
+        row(L("R4 融合", "R4 fusion"), L("多个 EVM 基因 : 1 个 EviAnn 基因", "several EVM genes : 1 EviAnn gene"),
+            L("EviAnn 有被支持、且 CDS 覆盖所有这些 EVM 基因的转录本 → 用 EviAnn 替换；否则保留 EVM，标记 needs_review",
+              "EviAnn has a supported transcript whose CDS covers all these EVM genes → replaced by EviAnn; otherwise EVM "
+              "kept and marked needs_review")),
+        row(L("R4 复杂", "R4 complex"), L("多 : 多", "many : many"),
+            L("保留 EVM，标记 needs_review", "EVM kept, marked needs_review")),
+        row("R5", L("只有 EVM 基因，没有重叠的 EviAnn 编码基因", "EVM gene only, no overlapping EviAnn coding gene"),
+            L("有以下任一证据则保留并记录在 refine_support：蛋白（miniprot / GeMoMa 的 CDS 同链重叠）、RNA（StringTie 重叠或“被支持”）、"
+              "BRAKER4 gene_support 的 RNA 支持；都没有 → ",
+              "kept with any of these, recorded in refine_support: protein (CDS overlap with miniprot / GeMoMa on the "
+              "same strand), RNA (StringTie overlap or \"supported\"), RNA support in BRAKER4 gene_support; none → ")
+            + unsup + L(f"（remove_unsupported_evm = {v['remove_unsupported_evm']}）",
+                        f" (remove_unsupported_evm = {v['remove_unsupported_evm']})")),
+        row("R6", L("EviAnn 的 lncRNA", "EviAnn lncRNAs"),
+            L("在更早的步骤已分出，单独输出为 lncRNA 文件，不参与修正",
+              "separated in an earlier step, written to their own lncRNA file, not part of the refinement")),
     ])
     support = "".join([
-        row("有长读", "多外显子模型",
-            "长读在模型范围内的内含子与模型的内含子完全一致；Iso-Seq HQ/LQ 转录本按 full_length_coverage（全长 reads 数）加权，"
-            f"合计 ≥ min_lr_support = {v['min_lr_support']}"),
-        row("有长读", "单外显子模型",
-            f"无剪接的长读覆盖模型长度 ≥ single_exon_overlap = {v['single_exon_overlap']}（加权计数同上）"),
-        row("只有短读（B）", "1 个内含子",
-            f"该内含子的剪接 reads ≥ min_sr_junction_reads = {v['min_sr_junction_reads']}，且 ≥ sr_min_junction_ratio = "
-            f"{v['sr_min_junction_ratio']} × 与它重叠的最强竞争内含子的 reads 数（排除低频的错误剪接）"),
-        row("只有短读（A 且 B）", "≥ 2 个内含子",
-            "每个内含子都满足 B；并且有一条 StringTie 转录本（短读组装，cov ≥ sr_stringtie_min_cov = "
-            f"{v['sr_stringtie_min_cov']}，同链或无链）在模型范围内的内含子链与模型完全一致，证明这些内含子属于同一条转录本"),
-        row("只有短读（C）", "单外显子模型",
-            f"有单外显子 StringTie 转录本（cov 达标）覆盖模型长度 ≥ {v['single_exon_overlap']}，且模型范围内没有达到 B 绝对门槛的剪接位点"),
-        row("无 RNA 数据", "—", "一律视为不被支持"),
+        row(L("有长读", "long reads"), L("多外显子模型", "multi-exon model"),
+            L("长读在模型范围内的内含子与模型的内含子完全一致；Iso-Seq HQ/LQ 转录本按 full_length_coverage（全长 reads 数）加权，"
+              f"合计 ≥ min_lr_support = {v['min_lr_support']}",
+              "introns of the long read within the model identical to the model's introns; Iso-Seq HQ/LQ transcripts "
+              f"weighted by full_length_coverage (full-length reads), total ≥ min_lr_support = {v['min_lr_support']}")),
+        row(L("有长读", "long reads"), L("单外显子模型", "single-exon model"),
+            L(f"无剪接的长读覆盖模型长度 ≥ single_exon_overlap = {v['single_exon_overlap']}（加权计数同上）",
+              f"unspliced long reads cover ≥ single_exon_overlap = {v['single_exon_overlap']} of the model "
+              "(weighted as above)")),
+        row(L("只有短读（B）", "short reads only (B)"), L("1 个内含子", "1 intron"),
+            L(f"该内含子的剪接 reads ≥ min_sr_junction_reads = {v['min_sr_junction_reads']}，且 ≥ sr_min_junction_ratio = "
+              f"{v['sr_min_junction_ratio']} × 与它重叠的最强竞争内含子的 reads 数（排除低频的错误剪接）",
+              f"junction reads of the intron ≥ min_sr_junction_reads = {v['min_sr_junction_reads']}, and ≥ "
+              f"sr_min_junction_ratio = {v['sr_min_junction_ratio']} x the reads of the strongest overlapping "
+              "competing intron (excludes rare mis-splicing)")),
+        row(L("只有短读（A 且 B）", "short reads only (A and B)"), L("≥ 2 个内含子", "≥ 2 introns"),
+            L("每个内含子都满足 B；并且有一条 StringTie 转录本（短读组装，cov ≥ sr_stringtie_min_cov = "
+              f"{v['sr_stringtie_min_cov']}，同链或无链）在模型范围内的内含子链与模型完全一致，证明这些内含子属于同一条转录本",
+              "every intron meets B; and a StringTie transcript (short-read assembly, cov ≥ sr_stringtie_min_cov = "
+              f"{v['sr_stringtie_min_cov']}, same strand or unstranded) has an intron chain within the model identical "
+              "to the model, showing that the introns belong to one transcript")),
+        row(L("只有短读（C）", "short reads only (C)"), L("单外显子模型", "single-exon model"),
+            L(f"有单外显子 StringTie 转录本（cov 达标）覆盖模型长度 ≥ {v['single_exon_overlap']}，且模型范围内没有达到 B 绝对门槛的剪接位点",
+              f"a single-exon StringTie transcript (sufficient cov) covers ≥ {v['single_exon_overlap']} of the model, "
+              "and no splice site within the model reaches the absolute threshold of B")),
+        row(L("无 RNA 数据", "no RNA data"), "—", L("一律视为不被支持", "always counted as not supported")),
     ])
     th = lambda *c: "<thead><tr>" + "".join(f"<th>{x}</th>" for x in c) + "</tr></thead>"
-    return ("<details><summary><b>修正规则详解（点击展开）</b></summary>"
-            "<p><b>位点与比较方式：</b>EVM 基因和 EviAnn 编码基因若在同一条链上 CDS 有重叠，归入同一个位点（可连锁合并），"
-            "规则按位点内两边的基因数选择。模型之间比较 CDS 的内含子链（EVM 模型没有 UTR，比较完整外显子很难一致）。"
-            f"EviAnn 转录本须有完整 ORF（起始和终止密码子、无内部终止）且 ≥ min_cds_aa = {v['min_cds_aa']} aa 才会被采用。</p>"
-            "<h4>规则</h4><table>" + th("规则", "情形", "处理") + "<tbody>" + rules + "</tbody></table>"
-            "<h4>“被支持”的判定（RNA 支持）</h4><table>" + th("数据", "模型", "条件") + "<tbody>" + support + "</tbody></table>"
-            "<p><b>跨基因连接（R4）：</b>有长读时为同时含两个相邻基因外显子的长读；只有短读时为一端在基因 A 外显子、另一端在基因 B 外显子的剪接 reads。</p>"
-            "<p><b>输出记录：</b>基因属性 refine_rule（适用的规则）、eviann_support（是否与 EviAnn 一致或来自 EviAnn）、refine_support"
-            "（R5 的证据或 needs_review）；05_EVM/refine/refine_decisions.tsv 每个位点一行，support_basis 列记录支持依据（long / A+B / B / C）。"
-            "表中数值为本次运行的配置（refine 段）。</p></details>")
+    return ("<details><summary><b>" + L("修正规则详解（点击展开）", "Refinement rules in detail (click to expand)") +
+            "</b></summary><p><b>" + L("位点与比较方式：", "Loci and comparison: ") + "</b>" +
+            L("EVM 基因和 EviAnn 编码基因若在同一条链上 CDS 有重叠，归入同一个位点（可连锁合并），"
+              "规则按位点内两边的基因数选择。模型之间比较 CDS 的内含子链（EVM 模型没有 UTR，比较完整外显子很难一致）。"
+              f"EviAnn 转录本须有完整 ORF（起始和终止密码子、无内部终止）且 ≥ min_cds_aa = {v['min_cds_aa']} aa 才会被采用。",
+              "EVM genes and EviAnn coding genes whose CDS overlap on the same strand form one locus (chained), and the "
+              "rule is chosen by the number of genes on each side. Models are compared by their CDS intron chains (EVM "
+              "models have no UTRs, so complete exons rarely agree). An EviAnn transcript is used only with a complete "
+              f"ORF (start and stop codon, no internal stop) of ≥ min_cds_aa = {v['min_cds_aa']} aa.") + "</p>"
+            "<h4>" + L("规则", "Rules") + "</h4><table>" + th(L("规则", "Rule"), L("情形", "Case"), L("处理", "Action")) +
+            "<tbody>" + rules + "</tbody></table>"
+            "<h4>" + L("“被支持”的判定（RNA 支持）", "When a model is \"supported\" (RNA support)") + "</h4><table>" +
+            th(L("数据", "Data"), L("模型", "Model"), L("条件", "Condition")) + "<tbody>" + support + "</tbody></table>"
+            "<p><b>" + L("跨基因连接（R4）：", "Connections between genes (R4): ") + "</b>" +
+            L("有长读时为同时含两个相邻基因外显子的长读；只有短读时为一端在基因 A 外显子、另一端在基因 B 外显子的剪接 reads。",
+              "with long reads, a long read containing exons of both neighbouring genes; with short reads only, junction "
+              "reads with one end in an exon of gene A and the other in an exon of gene B.") + "</p>"
+            "<p><b>" + L("输出记录：", "Records: ") + "</b>" +
+            L("基因属性 refine_rule（适用的规则）、eviann_support（是否与 EviAnn 一致或来自 EviAnn）、refine_support"
+              "（R5 的证据或 needs_review）；05_EVM/refine/refine_decisions.tsv 每个位点一行，support_basis 列记录支持依据（long / A+B / B / C）。"
+              "表中数值为本次运行的配置（refine 段）。",
+              "gene attributes refine_rule (the rule applied), eviann_support (agrees with or comes from EviAnn), "
+              "refine_support (R5 evidence or needs_review); 05_EVM/refine/refine_decisions.tsv has one line per locus, "
+              "the support_basis column gives the basis of the support (long / A+B / B / C). The values in the tables "
+              "are this run's configuration (refine section).") + "</p></details>")
 
 
 def long_read_weights_html(path):
@@ -393,20 +508,32 @@ def long_read_weights_html(path):
     warn = [x[0] for x in r if x[i_p] == "pacbio_isoseq" and x[i_w] == "0"]
     note = ""
     if warn:
-        note = ("<div class='note'><b>注意：</b>Iso-Seq 样本 " + html.escape("、".join(warn)) + " 没有任何一条记录带全长 reads 数"
-                "（表头没有 full_length_coverage，样本表也没有 counts 列），每条记录按 1 计数。若这些记录是原始 reads（CCS / FLNC），"
-                "这是正确的；若是聚类后的 HQ 转录本，长读支持会被明显低估（修正 R3/R4 偏保守、调优 P 偏低）。"
-                "请在 rna_long.tsv 的 counts 列填写 isoseq cluster 的 cluster_report.csv 或 isoseq collapse 的 flnc_count.txt，"
-                "或将 refine.min_lr_support 设为 1。</div>")
-    return ("<h3>长读的全长 reads 权重</h3><p class='muted'>修正步骤（R3/R4）和权重调优按\"全长 reads\"计算长读支持："
-            "每条比对上的记录的权重取自样本表 counts 列的计数文件，或 FASTA/FASTQ 表头的 full_length_coverage，都没有时按 1 计。</p>" +
-            note + table(h, r))
+        names = html.escape(L("、", ", ").join(warn))
+        note = ("<div class='note'><b>" + L("注意：", "Note: ") + "</b>" +
+                L(f"Iso-Seq 样本 {names} 没有任何一条记录带全长 reads 数"
+                  "（表头没有 full_length_coverage，样本表也没有 counts 列），每条记录按 1 计数。若这些记录是原始 reads（CCS / FLNC），"
+                  "这是正确的；若是聚类后的 HQ 转录本，长读支持会被明显低估（修正 R3/R4 偏保守、调优 P 偏低）。"
+                  "请在 rna_long.tsv 的 counts 列填写 isoseq cluster 的 cluster_report.csv 或 isoseq collapse 的 flnc_count.txt，"
+                  "或将 refine.min_lr_support 设为 1。",
+                  f"no record of the Iso-Seq sample(s) {names} carries a full-length read count (no "
+                  "full_length_coverage in the headers and no counts column in the sample table), so every record "
+                  "counts 1. This is correct for raw reads (CCS / FLNC); for clustered HQ transcripts the long-read "
+                  "support is clearly underestimated (refinement R3/R4 too conservative, tuning P too low). Fill the "
+                  "counts column of rna_long.tsv with isoseq cluster's cluster_report.csv or isoseq collapse's "
+                  "flnc_count.txt, or set refine.min_lr_support to 1.") + "</div>")
+    return ("<h3>" + L("长读的全长 reads 权重", "Full-length read weights of long reads") + "</h3><p class='muted'>" +
+            L("修正步骤（R3/R4）和权重调优按\"全长 reads\"计算长读支持："
+              "每条比对上的记录的权重取自样本表 counts 列的计数文件，或 FASTA/FASTQ 表头的 full_length_coverage，都没有时按 1 计。",
+              "The refinement (R3/R4) and the weight tuning count long-read support in full-length reads: the weight "
+              "of each aligned record comes from the count file in the counts column of the sample table, or from "
+              "full_length_coverage in the FASTA/FASTQ header, and is 1 otherwise.") + "</p>" + note + table(h, r))
 
 
 def tune_html(path, best, figdir):
     """EVM weight-tuning results: score table, F bar chart, the weights finally used."""
     if not os.path.exists(path):
-        return "<p class='muted'>未进行权重调优（evm.tune.enabled: false），使用配置中的权重。</p>"
+        return "<p class='muted'>" + L("未进行权重调优（evm.tune.enabled: false），使用配置中的权重。",
+                                       "No weight tuning (evm.tune.enabled: false); the configured weights are used.") + "</p>"
     lines = [l.rstrip("\n").split("\t") for l in open(path) if l.strip()]
     note = [l[0].lstrip("# ") for l in lines if l[0].startswith("#")]
     body = [l for l in lines if not l[0].startswith("#")]
@@ -427,15 +554,22 @@ def tune_html(path, best, figdir):
         ax.set_xlabel("score")
         legend_below(ax, ncol=3)
         fig = fig_to_img(f, figdir, "evm_tuning", (
-            "EVM 权重调优。", "每行一组权重（c00 为配置中的基线），按 F 从高到低排列；P = 多外显子模型的内含子链被任一证据完全确认的比例，"
-            "R = 证据位点被 EVM 模型覆盖的比例，F = 2PR/(P+R)。横轴只显示数值所在区间，便于看出差别。"))
+            L("EVM 权重调优。", "EVM weight tuning."),
+            L("每行一组权重（c00 为配置中的基线），按 F 从高到低排列；P = 多外显子模型的内含子链被任一证据完全确认的比例，"
+              "R = 证据位点被 EVM 模型覆盖的比例，F = 2PR/(P+R)。横轴只显示数值所在区间，便于看出差别。",
+              "One row per weight set (c00 = the configured baseline), sorted by F; P = share of multi-exon models "
+              "whose intron chain is exactly confirmed by any evidence, R = share of evidence sites covered by EVM "
+              "models, F = 2PR/(P+R). The x axis only spans the range of the values, so that differences are visible.")))
     used = [l.rstrip("\n").split("\t") for l in open(best) if l.strip()] if os.path.exists(best) else []
     base = next((x for x in r if x[1] == "c00"), None)
-    cmp_ = (f"最优组合 <b>{html.escape(r[0][1])}</b>（F = {r[0][h.index('F')]}）；配置中的基线权重 c00 排第 "
-            f"{base[0]} 位（F = {base[h.index('F')]}）。" if base else "")
-    return ("<h3>权重调优</h3>" + TUNE_HELP + "<p class='muted'>" + html.escape("; ".join(note)) + "</p><div class='note'>" + cmp_ +
-            "</div>" + fig + table(h, r, limit=40) + "<p>全基因组 EVM 实际使用的权重：</p>" +
-            table(["类别", "来源", "权重"], used))
+    cmp_ = (L(f"最优组合 <b>{html.escape(r[0][1])}</b>（F = {r[0][h.index('F')]}）；配置中的基线权重 c00 排第 "
+              f"{base[0]} 位（F = {base[h.index('F')]}）。",
+              f"Best set <b>{html.escape(r[0][1])}</b> (F = {r[0][h.index('F')]}); the configured baseline c00 ranks "
+              f"{base[0]} (F = {base[h.index('F')]}).") if base else "")
+    return ("<h3>" + L("权重调优", "Weight tuning") + "</h3>" + tune_help() + "<p class='muted'>" +
+            html.escape("; ".join(note)) + "</p><div class='note'>" + cmp_ + "</div>" + fig + table(h, r, limit=40) +
+            "<p>" + L("全基因组 EVM 实际使用的权重：", "Weights used by the whole-genome EVM:") + "</p>" +
+            table([L("类别", "Class"), L("来源", "Source"), L("权重", "Weight")], used))
 
 
 def naming_html(id_map, prefix):
@@ -463,11 +597,15 @@ def naming_html(id_map, prefix):
     for code in sorted(per, key=lambda c: (c == "00", c)):
         v = per[code]
         seqs = sorted(v["seqs"])
-        rows.append([code, ", ".join(seqs[:3]) + (f" 等 {len(seqs)} 条" if len(seqs) > 3 else ""), v["G"], v["L"],
-                     first.get((code, "G"), "-")])
-    return ("<h3>基因命名与各染色体基因数</h3><p class='muted'>编码基因 &lt;前缀&gt;&lt;染色体号&gt;G&lt;编号&gt;，"
-            "lncRNA 用 L；未挂载到染色体的序列代码为 00；新旧 ID 对照见 05_EVM/final/id_map.tsv。</p>" +
-            table(["染色体代码", "序列", "编码基因", "lncRNA", "第一个基因"], rows))
+        more = L(f" 等 {len(seqs)} 条", f" ... ({len(seqs)} in total)") if len(seqs) > 3 else ""
+        rows.append([code, ", ".join(seqs[:3]) + more, v["G"], v["L"], first.get((code, "G"), "-")])
+    return ("<h3>" + L("基因命名与各染色体基因数", "Gene names and genes per chromosome") + "</h3><p class='muted'>" +
+            L("编码基因 &lt;前缀&gt;&lt;染色体号&gt;G&lt;编号&gt;，"
+              "lncRNA 用 L；未挂载到染色体的序列代码为 00；新旧 ID 对照见 05_EVM/final/id_map.tsv。",
+              "Coding genes &lt;prefix&gt;&lt;chromosome&gt;G&lt;number&gt;, lncRNAs use L; sequences not assigned "
+              "to a chromosome have code 00; old and new IDs are listed in 05_EVM/final/id_map.tsv.") + "</p>" +
+            table([L("染色体代码", "Chromosome code"), L("序列", "Sequences"), L("编码基因", "Coding genes"), "lncRNA",
+                   L("第一个基因", "First gene")], rows))
 
 
 def source_support_html(support_tsv, combos_tsv, figdir, name):
@@ -478,52 +616,60 @@ def source_support_html(support_tsv, combos_tsv, figdir, name):
     fig = ""
     if cr_:
         top = cr_[:12]
+        what = (L("EVM 结果", "EVM result") if name == "evm" else L("最终结果", "final result"))
         fig = bar_figure([x[0] for x in top], [int(x[1]) for x in top], "transcripts", figdir,
                          f"{name}_source_combinations", (
-                             ("EVM 结果" if name == "evm" else "最终结果") + "的来源组合。",
-                             "每个转录本按哪些输入来源（BRAKER4 / GeMoMa / EviAnn）有 CDS 结构完全相同的模型分组；"
-                             "no exact match = 与任何来源都不完全一致（EVM 拼合或修正产生的结构）。"), values_text="{:.0f}")
-    return ("<h3>与各输入来源的一致性</h3><p class='muted'>exact = 该来源有 CDS 结构完全相同的转录本；"
-            "overlap = 与该来源的 CDS 在同一条链上有重叠。组合 = 有完全一致模型的来源组合。</p>" +
+                             L(f"{what}的来源组合。", f"Source combinations of the {what}."),
+                             L("每个转录本按哪些输入来源（BRAKER4 / GeMoMa / EviAnn）有 CDS 结构完全相同的模型分组；"
+                               "no exact match = 与任何来源都不完全一致（EVM 拼合或修正产生的结构）。",
+                               "Transcripts grouped by the input sources (BRAKER4 / GeMoMa / EviAnn) that have a model "
+                               "with an identical CDS structure; no exact match = identical to no source (structures "
+                               "assembled by EVM or produced by the refinement).")), values_text="{:.0f}")
+    return ("<h3>" + L("与各输入来源的一致性", "Agreement with the input sources") + "</h3><p class='muted'>" +
+            L("exact = 该来源有 CDS 结构完全相同的转录本；overlap = 与该来源的 CDS 在同一条链上有重叠。组合 = 有完全一致模型的来源组合。",
+              "exact = the source has a transcript with an identical CDS structure; overlap = the CDS overlaps one of "
+              "the source on the same strand. Combination = the sources with an identical model.") + "</p>" +
             table(sh_, sr_) + fig + table(ch_, cr_, limit=30))
 
 
-SECTION_WHAT = {"eviann": "EviAnn 注释（编码基因与 lncRNA）", "braker4": "BRAKER4 注释", "evm": "EVM 结果",
-                "gemoma": "同源注释（各物种单独结果与合并结果）", "final": "最终结果（主结果）"}
+def section_what(name):
+    return {"eviann": L("EviAnn 注释（编码基因与 lncRNA）", "EviAnn annotation (coding genes and lncRNAs)"),
+            "braker4": L("BRAKER4 注释", "BRAKER4 annotation"), "evm": L("EVM 结果", "EVM result"),
+            "gemoma": L("同源注释（各物种单独结果与合并结果）", "homology annotation (per species and merged)"),
+            "final": L("最终结果（主结果）", "final result (main result)")}.get(name, "")
 
 
 def annotation_section(O, name, stats_tsv, dist_tsv, qc_dir, figdir, intro, extra=""):
     """Statistics table + distributions + protein-set quality + AGAT for one annotation source."""
     h, r = read_tsv(stats_tsv)
     _, dist = read_tsv(dist_tsv)
-    parts = [intro, "<h3>基因结构统计</h3>",
-             "<p class='muted'>UTR 优先取 GFF 中的 UTR 特征，否则按外显子超出 CDS 的部分判断（区分正负链）。</p>",
-             table(h, r), distribution_figure(dist, figdir, f"{name}_distributions", SECTION_WHAT.get(name, ""))]
+    parts = [intro, "<h3>" + L("基因结构统计", "Gene structure statistics") + "</h3>",
+             "<p class='muted'>" + L("UTR 优先取 GFF 中的 UTR 特征，否则按外显子超出 CDS 的部分判断（区分正负链）。",
+                                     "UTRs are taken from UTR features of the GFF when present, otherwise from the "
+                                     "parts of exons outside the CDS (strand-aware).") + "</p>",
+             table(h, r), distribution_figure(dist, figdir, f"{name}_distributions", section_what(name))]
     q = protein_qc_rows(qc_dir)
     if q:
-        parts.append("<h3>蛋白集质量（最长异构体）</h3>" + table(["评估", "结果"], q))
+        parts.append("<h3>" + L("蛋白集质量（最长异构体）", "Protein set quality (longest isoform)") + "</h3>" +
+                     table([L("评估", "Assessment"), L("结果", "Result")], q))
     parts.append(extra)
     agat_f = os.path.join(qc_dir, "agat", "stats.txt")
     if os.path.exists(agat_f):
-        parts.append("<details><summary>AGAT 统计全文</summary><pre>" +
+        parts.append("<details><summary>" + L("AGAT 统计全文", "AGAT statistics (full text)") + "</summary><pre>" +
                      html.escape(open(agat_f).read()[:20000]) + "</pre></details>")
     return "".join(parts)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--outdir", required=True, help="pipeline result root (contains 00_Data ...)")
-    ap.add_argument("--prefix", required=True)
-    ap.add_argument("--braker4-mode", required=True)
-    ap.add_argument("--eviann-tag", required=True)
-    ap.add_argument("--config", required=True)
-    ap.add_argument("--eviann-proteins", default="同源物种蛋白", help="protein set given to EviAnn")
-    ap.add_argument("--homologs", nargs="*", default=[], help="homologous species names (per-species QC dirs)")
-    ap.add_argument("--no-rna", action="store_true", help="annotation without RNA-seq (rna.allow_none)")
-    ap.add_argument("--out", required=True)
-    a = ap.parse_args()
+EVIANN_PROTEINS = {"swissprot": ("UniProt-SwissProt（eviann.swissprot）", "UniProt-SwissProt (eviann.swissprot)"),
+                   "homologs": ("同源物种蛋白（未设置 eviann.swissprot）",
+                                "homologous species proteins (eviann.swissprot not set)"),
+                   "none": ("未运行（无 RNA）", "not run (no RNA)")}
+
+
+def build(a, out):
+    """Build the report in the current LANG and write it to `out`."""
     O = lambda *p: os.path.join(a.outdir, *p)
-    figdir = os.path.join(os.path.dirname(a.out), "figures")
+    figdir = os.path.join(os.path.dirname(out), "figures")
     S = []
 
     # 00_Data: inputs
@@ -538,21 +684,33 @@ def main():
             for k in per[name]:
                 if k not in items and k != "item":
                     items.append(k)
-        hom_html = ("<h3>同源物种注释预处理</h3><p class='muted'>只保留蛋白编码基因（及其有 CDS 的转录本），"
-                    "去掉转座子基因、假基因、ncRNA 基因等；GeMoMa 和蛋白库都使用预处理后的注释。</p>" +
-                    table(["项目"] + list(per), [[k] + [per[n].get(k, "0") for n in per] for k in items]))
-    S.append(("data", "00_Data 输入与序列名检查", table(["项目", "值"], rn) + hom_html))
+        hom_html = ("<h3>" + L("同源物种注释预处理", "Preprocessing of the homologous species' annotations") +
+                    "</h3><p class='muted'>" +
+                    L("只保留蛋白编码基因（及其有 CDS 的转录本），"
+                      "去掉转座子基因、假基因、ncRNA 基因等；GeMoMa 和蛋白库都使用预处理后的注释。",
+                      "Only protein-coding genes (and their transcripts with a CDS) are kept; transposon genes, "
+                      "pseudogenes, ncRNA genes etc. are removed; GeMoMa and the protein database use the "
+                      "preprocessed annotations.") + "</p>" +
+                    table([L("项目", "Item")] + list(per), [[k] + [per[n].get(k, "0") for n in per] for k in items]))
+    S.append(("data", L("00_Data 输入与序列名检查", "00_Data Inputs and sequence names"),
+              table([L("项目", "Item"), L("值", "Value")], rn) + hom_html))
 
     # 00_Data: genome assembly quality (every assessment result appears here)
     AQ = lambda *p: O("00_Data/qc/assembly", *p)
     qh, qr = read_tsv(O("00_Data/qc/assembly_quality.tsv"))
-    parts = ["<p>对用户提供的原始组装（原始序列名）进行评估。连续性：scaffold / contig 两级，contig 在连续 N 处拆分；"
-             "完整度：BUSCO 基因组模式、Merqury k-mer 完整度（可选）、LAI（EDTA 完成后计算）；准确度：Merqury QV（可选）；"
-             "端粒：tidk；污染：FCS-GX（可选，只报告不删除）。</p>",
-             "<h3>汇总</h3>" + table(qh, qr)]
+    parts = ["<p>" + L("对用户提供的原始组装（原始序列名）进行评估。连续性：scaffold / contig 两级，contig 在连续 N 处拆分；"
+                       "完整度：BUSCO 基因组模式、Merqury k-mer 完整度（可选）、LAI（EDTA 完成后计算）；准确度：Merqury QV（可选）；"
+                       "端粒：tidk；污染：FCS-GX（可选，只报告不删除）。",
+                       "The assembly as provided (original sequence names) is assessed. Contiguity: scaffold and "
+                       "contig level, contigs split at runs of N; completeness: BUSCO genome mode, Merqury k-mer "
+                       "completeness (optional), LAI (after EDTA); accuracy: Merqury QV (optional); telomeres: tidk; "
+                       "contamination: FCS-GX (optional, reported only, nothing removed).") + "</p>",
+             "<h3>" + L("汇总", "Summary") + "</h3>" + table(qh, qr)]
     skipped = [x[1] for x in qr if len(x) > 2 and x[2] == "not run"]
     if skipped:
-        parts.append("<div class='note'>未运行（未配置所需数据或数据库）：" + html.escape("、".join(skipped)) + "</div>")
+        parts.append("<div class='note'>" + L("未运行（未配置所需数据或数据库）：", "Not run (required data or database "
+                                                                         "not configured): ") +
+                     html.escape(L("、", ", ").join(skipped)) + "</div>")
 
     sh_, sr_ = read_tsv(AQ("assembly_stats.tsv"))
     _, seqs = read_tsv(AQ("sequences.tsv"))
@@ -572,14 +730,19 @@ def main():
         ax.set_xlabel("sequences (longest first, log scale)")
         ax.set_ylabel("cumulative % of assembly")
         fig = fig_to_img(f, figdir, "assembly_cumulative_length", (
-            "序列累计长度。", "序列按长度从长到短排列（横轴为对数刻度），纵轴为累计长度占组装总长的百分比；"
-            "虚线 50% 和点线 90% 与曲线的交点分别对应 L50 和 L90。"))
+            L("序列累计长度。", "Cumulative sequence length."),
+            L("序列按长度从长到短排列（横轴为对数刻度），纵轴为累计长度占组装总长的百分比；"
+              "虚线 50% 和点线 90% 与曲线的交点分别对应 L50 和 L90。",
+              "Sequences sorted from longest to shortest (log x axis); the y axis is the cumulative length as % of the "
+              "assembly; the curve crosses the dashed 50% and dotted 90% lines at L50 and L90.")))
     sk_h, sk_r = read_tsv(O("00_Data/qc/seqkit/genome.stats.tsv"))
-    parts.append("<h3>连续性</h3>" + table(sh_, sr_) + fig +
-                 "<p class='muted'>seqkit stats -a（重命名和长度过滤后的内部基因组）：</p>" + table(sk_h, sk_r))
+    parts.append("<h3>" + L("连续性", "Contiguity") + "</h3>" + table(sh_, sr_) + fig +
+                 "<p class='muted'>" + L("seqkit stats -a（重命名和长度过滤后的内部基因组）：",
+                                         "seqkit stats -a (internal genome after renaming and length filter):") +
+                 "</p>" + table(sk_h, sk_r))
     if seqs:
-        parts.append("<h3>各序列</h3>" + table(["seq_id", "length", "GC_percent", "N_bases", "gaps", "gap_length",
-                                                "contigs"], seqs, limit=60))
+        parts.append("<h3>" + L("各序列", "Sequences") + "</h3>" +
+                     table(["seq_id", "length", "GC_percent", "N_bases", "gaps", "gap_length", "contigs"], seqs, limit=60))
 
     # BUSCO genome mode
     brows = []
@@ -589,9 +752,15 @@ def main():
             brows.append(["genome", os.path.basename(os.path.dirname(f_)), *m.groups()])
     if brows:
         bh = ["source", "lineage", "C", "S", "D", "F", "M", "n"]
-        parts.append("<h3>BUSCO（基因组模式）</h3>" + busco_figure(bh, brows, figdir, "busco_genome", (
-            "基因组 BUSCO（genome 模式）。", "每行一个 BUSCO 数据集；按单拷贝完整（S）、重复完整（D）、片段（F）、缺失（M）的百分比堆叠，"
-            "右侧为完整度 C = S + D。这是基因组组装完整性的基线，注释的 BUSCO 一般不会高于它。")) + table(bh, brows))
+        parts.append("<h3>" + L("BUSCO（基因组模式）", "BUSCO (genome mode)") + "</h3>" +
+                     busco_figure(bh, brows, figdir, "busco_genome", (
+                         L("基因组 BUSCO（genome 模式）。", "Genome BUSCO (genome mode)."),
+                         L("每行一个 BUSCO 数据集；按单拷贝完整（S）、重复完整（D）、片段（F）、缺失（M）的百分比堆叠，"
+                           "右侧为完整度 C = S + D。这是基因组组装完整性的基线，注释的 BUSCO 一般不会高于它。",
+                           "One row per BUSCO dataset; bars stack complete single-copy (S), complete duplicated (D), "
+                           "fragmented (F) and missing (M); completeness C = S + D on the right. This is the baseline "
+                           "of assembly completeness; the BUSCO of an annotation is usually not higher."))) +
+                     table(bh, brows))
 
     # Merqury
     mrows = []
@@ -607,36 +776,50 @@ def main():
     # LAI (after EDTA)
     lai_f = AQ("lai", "genome.LAI")
     if os.path.exists(lai_f):
-        lai_help = ("<p class='muted'>LAI（LTR Assembly Index，Ou et al. 2018, NAR 46:e126）用完整 LTR 反转录转座子占全部 LTR 序列的比例"
-                    "衡量组装对重复区的连续性：raw_LAI = 完整 LTR 长度 / 全部 LTR 长度 × 100；LAI 再按 LTR 序列一致性校正，"
-                    "排除近期大量扩增的家族造成的偏高。参考分级：draft &lt; 10，reference 10–20，gold ≥ 20。"
-                    "完整 LTR 来自 EDTA，全部 LTR 来自 RepeatMasker（EDTA 库）。</p>")
+        lai_help = ("<p class='muted'>" +
+                    L("LAI（LTR Assembly Index，Ou et al. 2018, NAR 46:e126）用完整 LTR 反转录转座子占全部 LTR 序列的比例"
+                      "衡量组装对重复区的连续性：raw_LAI = 完整 LTR 长度 / 全部 LTR 长度 × 100；LAI 再按 LTR 序列一致性校正，"
+                      "排除近期大量扩增的家族造成的偏高。参考分级：draft &lt; 10，reference 10–20，gold ≥ 20。"
+                      "完整 LTR 来自 EDTA，全部 LTR 来自 RepeatMasker（EDTA 库）。",
+                      "LAI (LTR Assembly Index, Ou et al. 2018, NAR 46:e126) measures the contiguity of repeat regions "
+                      "as the share of intact LTR retrotransposons in all LTR sequence: raw_LAI = intact LTR length / "
+                      "total LTR length x 100; LAI is further corrected for LTR identity to exclude inflation by recently "
+                      "amplified families. Guide values: draft &lt; 10, reference 10–20, gold ≥ 20. Intact LTRs come "
+                      "from EDTA, all LTRs from RepeatMasker (EDTA library).") + "</p>")
         first = open(lai_f).readline()
         if first.startswith("# LAI not applicable"):
-            parts.append("<h3>LAI</h3>" + lai_help + "<div class='note'>LAI 不适用：" +
-                         html.escape(first.split(":", 1)[1].strip().rstrip(".")) +
-                         "。LTR 反转录转座子占基因组不足 5% 时，LAI 无法可靠估计（单条染色体测试或 LTR 很少的物种常见）。</div>")
+            reason = html.escape(first.split(":", 1)[1].strip().rstrip("."))
+            parts.append("<h3>LAI</h3>" + lai_help + "<div class='note'>" +
+                         L(f"LAI 不适用：{reason}。LTR 反转录转座子占基因组不足 5% 时，LAI 无法可靠估计（单条染色体测试或 LTR 很少的物种常见）。",
+                           f"LAI not applicable: {reason}. With LTR retrotransposons below 5% of the genome LAI cannot "
+                           "be estimated reliably (common for single-chromosome tests or species with few LTRs).") +
+                         "</div>")
         else:
             lh, lr = read_tsv_ws(lai_f)
             whole = [x for x in lr if x and x[0] == "whole_genome"]
             parts.append("<h3>LAI</h3>" + lai_help +
-                         (f"<div class='note'>全基因组 LAI = <b>{html.escape(whole[0][-1])}</b>"
-                          f"（raw_LAI = {html.escape(whole[0][-2])}）</div>" if whole else "") +
-                         "<details><summary>按序列 / 窗口的 LAI</summary>" + table(lh, lr, limit=200) + "</details>")
+                         ("<div class='note'>" + L("全基因组 LAI = ", "Whole-genome LAI = ") +
+                          f"<b>{html.escape(whole[0][-1])}</b>" +
+                          L(f"（raw_LAI = {html.escape(whole[0][-2])}）", f" (raw_LAI = {html.escape(whole[0][-2])})") +
+                          "</div>" if whole else "") +
+                         "<details><summary>" + L("按序列 / 窗口的 LAI", "LAI per sequence / window") + "</summary>" +
+                         table(lh, lr, limit=200) + "</details>")
 
     # Telomeres
     ts = kv_file(AQ("telomere", "telomere_summary.tsv"))
     th, tr = read_tsv(AQ("telomere", "telomere_per_sequence.tsv"))
     if ts or th:
-        parts.append("<h3>端粒（tidk）</h3>" + table(["项目", "值"], ts) + table(th, tr, limit=60))
+        parts.append("<h3>" + L("端粒（tidk）", "Telomeres (tidk)") + "</h3>" +
+                     table([L("项目", "Item"), L("值", "Value")], ts) + table(th, tr, limit=60))
 
     # FCS-GX
     fh_, fr_ = read_tsv(AQ("fcs_gx", "fcs_gx_report.txt"))
     if fh_:
-        parts.append("<h3>污染筛查（FCS-GX）</h3><p>只报告，流程不会自动删除任何序列。</p>" +
-                     (table(fh_, fr_) if fr_ else "<p>未发现污染。</p>"))
+        parts.append("<h3>" + L("污染筛查（FCS-GX）", "Contamination screen (FCS-GX)") + "</h3><p>" +
+                     L("只报告，流程不会自动删除任何序列。", "Reported only; the workflow does not remove any sequence.") +
+                     "</p>" + (table(fh_, fr_) if fr_ else "<p>" + L("未发现污染。", "No contamination found.") + "</p>"))
 
-    S.append(("assembly", "00_Data 基因组组装质量", "".join(parts)))
+    S.append(("assembly", L("00_Data 基因组组装质量", "00_Data Genome assembly quality"), "".join(parts)))
 
     # 00_Data: RNA-seq raw data
     fastp = []
@@ -658,32 +841,44 @@ def main():
                 kv[k.strip()] = v.strip().split()[0] if v.strip() else ""
         nano.append([os.path.basename(os.path.dirname(f_)), kv.get("Number of reads", ""),
                      kv.get("Mean read length", ""), kv.get("Read length N50", ""), kv.get("Mean read quality", "")])
-    S.append(("rnaqc", "00_Data RNA-seq 原始数据",
-              "<h3>短读（fastp）</h3>" + table(["sample", "reads_before", "reads_after", "Q30_%", "GC_%"], fastp) +
-              "<h3>长读（NanoPlot）</h3>" + table(["sample", "reads", "mean_length", "N50", "mean_quality"], nano)))
+    S.append(("rnaqc", L("00_Data RNA-seq 原始数据", "00_Data RNA-seq raw data"),
+              "<h3>" + L("短读（fastp）", "Short reads (fastp)") + "</h3>" +
+              table(["sample", "reads_before", "reads_after", "Q30_%", "GC_%"], fastp) +
+              "<h3>" + L("长读（NanoPlot）", "Long reads (NanoPlot)") + "</h3>" +
+              table(["sample", "reads", "mean_length", "N50", "mean_quality"], nano)))
     # 01_Repeat
     R = lambda n: O("01_Repeat/stats", n + ".tsv")
-    rparts = ["<p>EDTA 构建物种特异 TE 库并做全基因组 TE 注释；RepeatMasker 用该库对基因组软屏蔽"
-              "（同时屏蔽简单重复和低复杂度序列）。重叠的注释只计一次。</p>"]
+    rparts = ["<p>" + L("EDTA 构建物种特异 TE 库并做全基因组 TE 注释；RepeatMasker 用该库对基因组软屏蔽"
+                        "（同时屏蔽简单重复和低复杂度序列）。重叠的注释只计一次。",
+                        "EDTA builds a species-specific TE library and annotates TEs genome-wide; RepeatMasker "
+                        "soft-masks the genome with this library (also masking simple repeats and low-complexity "
+                        "sequence). Overlapping annotations are counted once.") + "</p>"]
     h, r = read_tsv(R("overview"))
     if h:
-        rparts.append("<h3>总览</h3>" + table(h, r))
+        rparts.append("<h3>" + L("总览", "Overview") + "</h3>" + table(h, r))
     h, r = read_tsv(R("te_classes"))
     if h and r:
         tops = [x for x in r if x[1] == "(all)"]
         fig = bar_figure([x[0] for x in tops], [float(x[4]) if x[4] != "-" else 0 for x in tops], "% of genome",
-                         figdir, "te_classes", ("各类转座子占基因组的比例。",
-                                                "EDTA 注释中各 TE 大类（各超家族合计）覆盖的碱基占基因组长度的百分比；重叠部分只计一次。"),
+                         figdir, "te_classes", (
+                             L("各类转座子占基因组的比例。", "Share of the genome per TE class."),
+                             L("EDTA 注释中各 TE 大类（各超家族合计）覆盖的碱基占基因组长度的百分比；重叠部分只计一次。",
+                               "Bases covered by each TE class of the EDTA annotation (all superfamilies together) as "
+                               "% of the genome length; overlaps are counted once.")),
                          values_text="{:.2f}%")
-        rparts.append("<h3>TE 类别组成</h3>" + fig + table(h, r))
+        rparts.append("<h3>" + L("TE 类别组成", "TE class composition") + "</h3>" + fig + table(h, r))
     h, r = read_tsv(R("te_methods"))
     if h and r:
-        rparts.append("<h3>结构鉴定（完整元件）与同源注释</h3><p class='muted'>structural = 由结构特征鉴定的完整元件；"
-                      "homology = 根据 TE 库同源比对注释的片段。</p>" + table(h, r))
+        rparts.append("<h3>" + L("结构鉴定（完整元件）与同源注释", "Structural identification (intact elements) and "
+                                                         "homology annotation") + "</h3><p class='muted'>" +
+                      L("structural = 由结构特征鉴定的完整元件；homology = 根据 TE 库同源比对注释的片段。",
+                        "structural = intact elements identified by structural features; homology = fragments "
+                        "annotated by similarity to the TE library.") + "</p>" + table(h, r))
     h, r = read_tsv(R("library"))
     if h and r:
-        rparts.append("<h3>TE 库</h3><p class='muted'>共 " + str(sum(int(x[1]) for x in r)) + " 条一致序列。</p>" +
-                      table(h, r))
+        n_lib = sum(int(x[1]) for x in r)
+        rparts.append("<h3>" + L("TE 库", "TE library") + "</h3><p class='muted'>" +
+                      L(f"共 {n_lib} 条一致序列。", f"{n_lib} consensus sequences in total.") + "</p>" + table(h, r))
     h, r = read_tsv(R("landscape"))
     if h and r and plt is not None:
         classes = sorted({x[1] for x in r})
@@ -699,15 +894,22 @@ def main():
         ax.set_xlabel("Kimura substitution level (%)")
         ax.set_ylabel("% of genome")
         ax.legend(fontsize=8, ncol=4, frameon=False)
-        rparts.append("<h3>重复序列景观（Kimura 距离）</h3><p class='muted'>距离越小，插入越年轻。</p>" +
+        rparts.append("<h3>" + L("重复序列景观（Kimura 距离）", "Repeat landscape (Kimura distance)") +
+                      "</h3><p class='muted'>" + L("距离越小，插入越年轻。", "The smaller the distance, the younger "
+                                                                         "the insertion.") + "</p>" +
                       fig_to_img(f, figdir, "repeat_landscape", (
-                          "重复序列景观。", "横轴为拷贝与其一致序列之间的 Kimura 距离（经 CpG 校正，%），纵轴为该距离区间内各 TE 类别占基因组的百分比。"
-                          "距离越小代表插入越年轻；0 附近的峰常来自近期活跃或刚扩增的家族。")))
+                          L("重复序列景观。", "Repeat landscape."),
+                          L("横轴为拷贝与其一致序列之间的 Kimura 距离（经 CpG 校正，%），纵轴为该距离区间内各 TE 类别占基因组的百分比。"
+                            "距离越小代表插入越年轻；0 附近的峰常来自近期活跃或刚扩增的家族。",
+                            "x axis: Kimura distance between copies and their consensus (CpG-adjusted, %); y axis: "
+                            "share of the genome per TE class in each distance bin. Smaller distances mean younger "
+                            "insertions; a peak near 0 usually comes from recently active or amplified families."))))
     age_f = R("ltr_age")
     if os.path.exists(age_f):
         lines = [l.rstrip("\n").split("\t") for l in open(age_f) if l.strip()]
         note = [l[0].lstrip("# ") for l in lines if l[0].startswith("#")]
         body = [l for l in lines[1:] if not l[0].startswith("#")][1:] if len(lines) > 2 else []
+        title = "<h3>" + L("完整 LTR 插入时间", "Insertion time of intact LTRs") + "</h3>"
         if body:
             by_sf = {}
             for x in body:
@@ -717,7 +919,9 @@ def main():
             fig = ""
             n_ltr = sum(len(v) for v in by_sf.values())
             if plt is not None and n_ltr < 20:
-                fig = f"<p class='muted'>只有 {n_ltr} 个完整 LTR，数量太少，不画分布图，见下表。</p>"
+                fig = "<p class='muted'>" + L(f"只有 {n_ltr} 个完整 LTR，数量太少，不画分布图，见下表。",
+                                              f"Only {n_ltr} intact LTRs, too few for a distribution plot; see the "
+                                              "table.") + "</p>"
             elif plt is not None:
                 f, ax = plt.subplots(figsize=(7, 3.2))
                 for i, (sf, v) in enumerate(sorted(by_sf.items(), key=lambda t: -len(t[1]))[:4]):
@@ -726,17 +930,23 @@ def main():
                 ax.set_ylabel("intact LTRs")
                 ax.legend(frameon=False)
                 fig = fig_to_img(f, figdir, "ltr_insertion_time", (
-                    "完整 LTR 反转录转座子的插入时间。", "按超家族（最多 4 个）分别统计；插入时间 T = K / (2u)，K 为两端 LTR 之间的分化度，"
-                    "u 为替换速率（EDTA -u，见配置）。"))
-            rparts.append("<h3>完整 LTR 插入时间</h3><p class='muted'>" + html.escape("; ".join(note)) + "</p>" + fig +
-                          table(["超家族", "完整 LTR 数", "中位数 (Mya)", "最小", "最大"], summ))
+                    L("完整 LTR 反转录转座子的插入时间。", "Insertion time of intact LTR retrotransposons."),
+                    L("按超家族（最多 4 个）分别统计；插入时间 T = K / (2u)，K 为两端 LTR 之间的分化度，"
+                      "u 为替换速率（EDTA -u，见配置）。",
+                      "Per superfamily (at most 4); insertion time T = K / (2u), K = divergence between the two LTRs, "
+                      "u = substitution rate (EDTA -u, see the configuration).")))
+            rparts.append(title + "<p class='muted'>" + html.escape("; ".join(note)) + "</p>" + fig +
+                          table([L("超家族", "Superfamily"), L("完整 LTR 数", "Intact LTRs"),
+                                 L("中位数 (Mya)", "Median (Mya)"), L("最小", "Min"), L("最大", "Max")], summ))
         else:
-            rparts.append("<h3>完整 LTR 插入时间</h3><p class='muted'>未找到完整 LTR 列表或其中没有插入时间。</p>")
+            rparts.append(title + "<p class='muted'>" + L("未找到完整 LTR 列表或其中没有插入时间。",
+                                                          "No intact LTR list found, or it has no insertion times.") +
+                          "</p>")
     sumf = glob.glob(O("01_Repeat/EDTA/*.TEanno.sum"))
     if sumf:
-        rparts.append("<details><summary>EDTA 注释汇总原文</summary><pre>" +
-                      html.escape(open(sumf[0]).read()[:20000]) + "</pre></details>")
-    S.append(("repeat", "01_Repeat 重复序列", "".join(rparts)))
+        rparts.append("<details><summary>" + L("EDTA 注释汇总原文", "EDTA annotation summary (original text)") +
+                      "</summary><pre>" + html.escape(open(sumf[0]).read()[:20000]) + "</pre></details>")
+    S.append(("repeat", L("01_Repeat 重复序列", "01_Repeat Repeats"), "".join(rparts)))
     # 02_RNA: alignment
     ah, ar = read_tsv(O("02_RNA/qc/alignment_summary.tsv"))
     mh, mr = read_tsv(O("02_RNA/qc/merged_bam_summary.tsv"))
@@ -755,21 +965,35 @@ def main():
         ax.set_xlabel("%")
         legend_below(ax, ncol=2)
         fig = fig_to_img(f, figdir, "rna_alignment", (
-            "RNA-seq 比对率。", "每行一个样本（括号内为平台）。蓝色 = 比对上的 reads 占总 reads 的百分比；"
-            "橙色 = 比对上的 reads 中含剪接（CIGAR 中有 N）的比例，长读通常远高于短读。"))
-    S.append(("rnaalign", "02_RNA RNA-seq 比对",
-              "<p>短读用 HISAT2 比对，长读用 minimap2 比对（预设按平台选择）。比对率 = 比对上的 reads / 总 reads"
-              "（samtools stats，不含 secondary/supplementary）；unique/multi 来自 HISAT2 汇总；"
-              "spliced % = 含内含子（CIGAR 中有 N）的主比对占比对上 reads 的比例；error rate 为错配碱基 / 比对碱基。</p>"
-              "<h3>各样本</h3>" + fig + table(ah, ar) +
-              "<h3>合并 BAM 及其下游用途</h3>" + table(mh, mr) + long_read_weights_html(O("02_RNA/qc/long_read_weights.tsv"))))
+            L("RNA-seq 比对率。", "RNA-seq alignment rates."),
+            L("每行一个样本（括号内为平台）。蓝色 = 比对上的 reads 占总 reads 的百分比；"
+              "橙色 = 比对上的 reads 中含剪接（CIGAR 中有 N）的比例，长读通常远高于短读。",
+              "One row per sample (platform in brackets). Blue = aligned reads as % of all reads; orange = share of "
+              "aligned reads that are spliced (N in the CIGAR), usually much higher for long reads than short reads.")))
+    S.append(("rnaalign", L("02_RNA RNA-seq 比对", "02_RNA RNA-seq alignment"),
+              "<p>" + L("短读用 HISAT2 比对，长读用 minimap2 比对（预设按平台选择）。比对率 = 比对上的 reads / 总 reads"
+                        "（samtools stats，不含 secondary/supplementary）；unique/multi 来自 HISAT2 汇总；"
+                        "spliced % = 含内含子（CIGAR 中有 N）的主比对占比对上 reads 的比例；error rate 为错配碱基 / 比对碱基。",
+                        "Short reads are aligned with HISAT2, long reads with minimap2 (preset by platform). Alignment "
+                        "rate = aligned reads / all reads (samtools stats, without secondary/supplementary); "
+                        "unique/multi from the HISAT2 summary; spliced % = primary alignments with an intron (N in "
+                        "the CIGAR) as share of aligned reads; error rate = mismatched bases / aligned bases.") + "</p>"
+              "<h3>" + L("各样本", "Samples") + "</h3>" + fig + table(ah, ar) +
+              "<h3>" + L("合并 BAM 及其下游用途", "Merged BAMs and their use downstream") + "</h3>" + table(mh, mr) +
+              long_read_weights_html(O("02_RNA/qc/long_read_weights.tsv"))))
     # 02-04: annotation sources (same layout for EviAnn, BRAKER4, GeMoMa)
-    S.append(("eviann", "02_RNA EviAnn 注释", annotation_section(
+    prot = EVIANN_PROTEINS.get(a.eviann_proteins, (a.eviann_proteins, a.eviann_proteins))
+    prot = prot[0] if LANG == "zh" else prot[1]
+    S.append(("eviann", L("02_RNA EviAnn 注释", "02_RNA EviAnn annotation"), annotation_section(
         O, "eviann", O("02_RNA/EviAnn/stats/eviann_stats.tsv"), O("02_RNA/EviAnn/stats/eviann_distributions.tsv"),
         O("02_RNA/EviAnn/qc"), figdir,
-        f"<p>EviAnn 以 RNA 比对（reads 标签 <b>{html.escape(a.eviann_tag)}</b>）为证据进行注释；确定 CDS 所用的蛋白集："
-        f"<b>{html.escape(a.eviann_proteins)}</b>。"
-        "结果按是否含 CDS 拆分为编码基因（进入 EVM）和 lncRNA（单独输出）。</p>")))
+        "<p>" + L(f"EviAnn 以 RNA 比对为证据进行注释，每个样本单独一行输入（<b>{html.escape(a.eviann_tag)}</b>），"
+                  f"EviAnn 对每个样本分别组装再合并；确定 CDS 所用的蛋白集：<b>{html.escape(prot)}</b>。"
+                  "结果按是否含 CDS 拆分为编码基因（进入 EVM）和 lncRNA（单独输出；EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）。",
+                  f"EviAnn annotates from the RNA alignments, one input line per sample (<b>{html.escape(a.eviann_tag)}"
+                  "</b>), assembling each sample separately and then merging; protein set used to call CDSs: "
+                  f"<b>{html.escape(prot)}</b>. The result is split by CDS into coding genes (to EVM) and lncRNAs "
+                  "(written separately; EviAnn keeps a lncRNA only when it is found in at least 2 samples).") + "</p>")))
 
     sp_h, sp_r = read_tsv(O("03_Ab_initio/stats/braker4_support.tsv"))
     sp_note = ""
@@ -777,13 +1001,20 @@ def main():
     if os.path.exists(sp_file):
         sp_note = "".join(f"<p class='muted'>{html.escape(l[1:].strip())}</p>" for l in open(sp_file) if l.startswith("#"))
     sp_r = [r for r in sp_r if not r[0].startswith("#")]
-    S.append(("braker4", "03_Ab_initio BRAKER4 注释", annotation_section(
+    mode = html.escape(a.braker4_mode)
+    S.append(("braker4", L("03_Ab_initio BRAKER4 注释", "03_Ab_initio BRAKER4 annotation"), annotation_section(
         O, "braker4", O("03_Ab_initio/stats/braker4_stats.tsv"), O("03_Ab_initio/stats/braker4_distributions.tsv"),
         O("03_Ab_initio/qc"), figdir,
-        f"<div class='note'>BRAKER4 模式：<b>{html.escape(a.braker4_mode)}</b>（按数据自动选择：短读 + PacBio = dual，有短读无 PacBio = ETP，仅 PacBio = IsoSeq，仅 ONT 或无 RNA = EP；"
-        "ONT 长读不进入 BRAKER4）。输入为软屏蔽基因组、OrthoDB 与同源物种蛋白。</div>",
-        extra="<h3>证据支持（gene_support.tsv）</h3>" + sp_note +
-              "<p class='muted'>BRAKER4 未说明该文件的列含义，此处逐列统计非零/为真的模型比例。</p>" +
+        "<div class='note'>" +
+        L(f"BRAKER4 模式：<b>{mode}</b>（按数据自动选择：短读 + PacBio = dual，有短读无 PacBio = ETP，仅 PacBio = IsoSeq，"
+          "仅 ONT 或无 RNA = EP；ONT 长读不进入 BRAKER4）。输入为软屏蔽基因组、OrthoDB 与同源物种蛋白。",
+          f"BRAKER4 mode: <b>{mode}</b> (chosen from the data: short + PacBio = dual, short without PacBio = ETP, "
+          "PacBio only = IsoSeq, ONT only or no RNA = EP; ONT long reads are not passed to BRAKER4). Inputs: the "
+          "soft-masked genome, OrthoDB and the homologous species' proteins.") + "</div>",
+        extra="<h3>" + L("证据支持（gene_support.tsv）", "Evidence support (gene_support.tsv)") + "</h3>" + sp_note +
+              "<p class='muted'>" + L("BRAKER4 未说明该文件的列含义，此处逐列统计非零/为真的模型比例。",
+                                      "BRAKER4 does not document the columns of this file; for each column the share "
+                                      "of models with a non-zero / true value is given.") + "</p>" +
               table(sp_h, sp_r))))
 
     rf_h, rf_r = read_tsv(O("04_Homology/stats/gemoma_references.tsv"))
@@ -793,20 +1024,41 @@ def main():
     for h_ in a.homologs:
         for k, v in protein_qc_rows(O("04_Homology/qc", f"GeMoMa_{h_}")):
             sp_qc.append([h_, k, v])
-    S.append(("gemoma", "04_Homology 同源注释（GeMoMa / miniprot）", annotation_section(
+    S.append(("gemoma", L("04_Homology 同源注释（GeMoMa / miniprot）", "04_Homology Homology annotation (GeMoMa / "
+                                                                    "miniprot)"), annotation_section(
         O, "gemoma", O("04_Homology/stats/gemoma_stats.tsv"), O("04_Homology/stats/gemoma_distributions.tsv"),
         O("04_Homology/qc/GeMoMa_merged"), figdir,
-        "<p>每个同源物种单独运行一次 GeMoMa：把该物种的基因模型投射到目标基因组，并用 RNA-seq 的剪接位点和覆盖度"
-        "（ERE，只提取一次）校正。各物种的预测再用 GeMoMa GAF + AnnotationFinalizer 合并为 GeMoMa_merged，"
-        "作为 EVM 的输入。下表中 GeMoMa_&lt;物种&gt; 为各物种单独的结果；蛋白集质量一栏为合并结果。</p>",
-        extra="<h3>各物种单独结果的蛋白集质量</h3>" + (table(["物种", "评估", "结果"], sp_qc) if sp_qc else
-                                                      "<p class='muted'>未做按物种的评估（qc.per_homolog: false）。</p>") +
-              "<h3>各物种对合并结果的贡献</h3><p class='muted'>merged_representative = 合并结果中代表预测来自该物种的转录本；"
-              "merged_supported = 该物种也预测出相同 CDS 的转录本（含 GAF alternative）。</p>" + table(rf_h, rf_r) +
-              "<h3>合并结果的证据属性</h3><p class='muted'>evidence = 预测出该转录本的物种数；tie = 有 RNA 支持的内含子比例；"
-              "tpc = 被 RNA 覆盖的转录本比例（后两项只在使用 RNA 证据时有意义）。</p>" + table(at_h, at_r) +
-              "<h3>miniprot 蛋白比对（按物种）</h3><p class='muted'>每个物种的蛋白单独比对到基因组；合并后作为 EVM 的 "
-              "PROTEIN 证据，也用于修正（R 规则）和权重调优。</p>" + table(mp_h, mp_r))))
+        "<p>" + L("每个同源物种单独运行一次 GeMoMa：把该物种的基因模型投射到目标基因组，并用 RNA-seq 的剪接位点和覆盖度"
+                  "（ERE，只提取一次）校正。各物种的预测再用 GeMoMa GAF + AnnotationFinalizer 合并为 GeMoMa_merged，"
+                  "作为 EVM 的输入。下表中 GeMoMa_&lt;物种&gt; 为各物种单独的结果；蛋白集质量一栏为合并结果。",
+                  "GeMoMa runs once per homologous species: the species' gene models are projected onto the target "
+                  "genome and corrected with RNA-seq splice sites and coverage (ERE, extracted once). The predictions "
+                  "of all species are combined with GeMoMa GAF + AnnotationFinalizer into GeMoMa_merged, the EVM "
+                  "input. GeMoMa_&lt;species&gt; in the table is the result of one species; the protein set quality "
+                  "refers to the merged result.") + "</p>",
+        extra="<h3>" + L("各物种单独结果的蛋白集质量", "Protein set quality per species") + "</h3>" +
+              (table([L("物种", "Species"), L("评估", "Assessment"), L("结果", "Result")], sp_qc) if sp_qc else
+               "<p class='muted'>" + L("未做按物种的评估（qc.per_homolog: false）。",
+                                       "No per-species assessment (qc.per_homolog: false).") + "</p>") +
+              "<h3>" + L("各物种对合并结果的贡献", "Contribution of each species to the merged result") +
+              "</h3><p class='muted'>" +
+              L("merged_representative = 合并结果中代表预测来自该物种的转录本；"
+                "merged_supported = 该物种也预测出相同 CDS 的转录本（含 GAF alternative）。",
+                "merged_representative = transcripts of the merged result whose representative prediction comes from "
+                "the species; merged_supported = transcripts for which the species also predicted the same CDS "
+                "(including GAF alternatives).") + "</p>" + table(rf_h, rf_r) +
+              "<h3>" + L("合并结果的证据属性", "Evidence attributes of the merged result") + "</h3><p class='muted'>" +
+              L("evidence = 预测出该转录本的物种数；tie = 有 RNA 支持的内含子比例；"
+                "tpc = 被 RNA 覆盖的转录本比例（后两项只在使用 RNA 证据时有意义）。",
+                "evidence = number of species predicting the transcript; tie = share of introns supported by RNA; "
+                "tpc = share of the transcript covered by RNA (the last two only mean something with RNA evidence).") +
+              "</p>" + table(at_h, at_r) +
+              "<h3>" + L("miniprot 蛋白比对（按物种）", "miniprot protein alignments (per species)") +
+              "</h3><p class='muted'>" +
+              L("每个物种的蛋白单独比对到基因组；合并后作为 EVM 的 PROTEIN 证据，也用于修正（R 规则）和权重调优。",
+                "The proteins of each species are aligned to the genome separately; combined, they are EVM's PROTEIN "
+                "evidence and are also used by the refinement (R rules) and the weight tuning.") + "</p>" +
+              table(mp_h, mp_r))))
 
     # QC comparison
     h, r = read_tsv(O("05_EVM/qc/summary.tsv"))
@@ -833,31 +1085,48 @@ def main():
                 ax.set_xlabel("% of reference")
                 legend_below(ax, ncol=3)
                 fig = fig_to_img(f, figdir, "reference_comparison", (
-                    "与参考注释的一致性（召回）。", "gene_recall = 参考基因中与该注释集有同链 CDS 重叠的比例；intron_recall = 参考的 CDS 内含子"
-                    "被完全相同地预测出的比例；tx_recall = 参考转录本的完整 CDS 结构被完全相同地预测出的比例。精确度见下表。"
-                    "参考注释本身也是预测结果时，反映的是一致程度而非准确率。"))
-            ref_html = ("<h3>与参考注释的一致性（CDS 水平）</h3>" + REF_COMPARE_HELP + "<p class='muted'>" + html.escape("; ".join(note)) +
-                        "</p>" + fig + table(rh, rr))
+                    L("与参考注释的一致性（召回）。", "Agreement with the reference annotation (recall)."),
+                    L("gene_recall = 参考基因中与该注释集有同链 CDS 重叠的比例；intron_recall = 参考的 CDS 内含子"
+                      "被完全相同地预测出的比例；tx_recall = 参考转录本的完整 CDS 结构被完全相同地预测出的比例。精确度见下表。"
+                      "参考注释本身也是预测结果时，反映的是一致程度而非准确率。",
+                      "gene_recall = reference genes with a CDS overlap on the same strand; intron_recall = reference "
+                      "CDS introns predicted exactly; tx_recall = reference transcripts whose complete CDS structure is "
+                      "predicted exactly. Precision is in the table. When the reference is itself a prediction, these "
+                      "values measure agreement, not accuracy.")))
+            ref_html = ("<h3>" + L("与参考注释的一致性（CDS 水平）", "Agreement with the reference annotation (CDS "
+                                                                    "level)") + "</h3>" + ref_compare_help() +
+                        "<p class='muted'>" + html.escape("; ".join(note)) + "</p>" + fig + table(rh, rr))
     ch, cr = read_tsv(O("05_EVM/stats/all_sets_stats.tsv"))
-    S.append(("qc", "各注释来源对比（BUSCO / OMArk / 基因结构）",
-              "<p>所有来源使用同一组用户指定的 BUSCO lineage。</p>" + busco_figure(h, r, figdir, "busco_comparison", (
-                  "各注释来源的蛋白集 BUSCO。", "每行一个注释来源 × 一个 BUSCO 数据集，输入为各来源每个基因的最长蛋白；"
-                  "按 S / D / F / M 堆叠，右侧为完整度 C。各来源使用同一组数据集，可以直接比较。")) + table(h, r) +
-              "<h3>基因结构对比</h3><p class='muted'>EviAnn 一列只含编码基因；final 为过滤和重新命名后的最终基因集。</p>" +
-              table(ch, cr) + ref_html))
+    S.append(("qc", L("各注释来源对比（BUSCO / OMArk / 基因结构）", "Comparison of annotation sources (BUSCO / OMArk / "
+                                                               "gene structure)"),
+              "<p>" + L("所有来源使用同一组用户指定的 BUSCO lineage。", "All sources use the same user-specified BUSCO "
+                                                                   "lineages.") + "</p>" +
+              busco_figure(h, r, figdir, "busco_comparison", (
+                  L("各注释来源的蛋白集 BUSCO。", "Protein-set BUSCO of the annotation sources."),
+                  L("每行一个注释来源 × 一个 BUSCO 数据集，输入为各来源每个基因的最长蛋白；"
+                    "按 S / D / F / M 堆叠，右侧为完整度 C。各来源使用同一组数据集，可以直接比较。",
+                    "One row per annotation source x BUSCO dataset, using the longest protein of every gene; stacked "
+                    "S / D / F / M with completeness C on the right. All sources use the same datasets and can be "
+                    "compared directly."))) + table(h, r) +
+              "<h3>" + L("基因结构对比", "Gene structure comparison") + "</h3><p class='muted'>" +
+              L("EviAnn 一列只含编码基因；final 为过滤和重新命名后的最终基因集。",
+                "The EviAnn column contains coding genes only; final is the final gene set after filtering and "
+                "renaming.") + "</p>" + table(ch, cr) + ref_html))
     # 05_EVM: EVM integration
     impl = kv_file(O("05_EVM/logs/evm_impl_check.txt"))
     impl_txt = ""
     if impl:
         bits = [impl[0][0]] + impl[0][1].split("\t")
-        impl_txt = (f"<div class='note'>EVM 实现：<b>{html.escape(bits[0])}</b>（{html.escape(bits[-1])}）"
+        impl_txt = ("<div class='note'>" + L("EVM 实现：", "EVM implementation: ") +
+                    f"<b>{html.escape(bits[0])}</b>" + L(f"（{html.escape(bits[-1])}）", f" ({html.escape(bits[-1])})") +
                     f"<br><span class='muted'>{html.escape(bits[1] if len(bits) > 2 else '')}</span></div>")
     w_rows = [l.rstrip("\n").split("\t") for l in open(O("05_EVM/inputs/weights.txt"))
               if l.strip()] if os.path.exists(O("05_EVM/inputs/weights.txt")) else []
-    S.append(("evm", "05_EVM EVM 整合", annotation_section(
+    S.append(("evm", L("05_EVM EVM 整合", "05_EVM EVM integration"), annotation_section(
         O, "evm", O("05_EVM/stats/evm_stats.tsv"), O("05_EVM/stats/evm_distributions.tsv"), O("05_EVM/qc/evm"),
         figdir, impl_txt + tune_html(O("05_EVM/tune/tuning_results.tsv"), O("05_EVM/tune/best_weights.txt"), figdir)
-        + "<h3>输入权重</h3>" + table(["类别", "来源", "权重"], w_rows),
+        + "<h3>" + L("输入权重", "Input weights") + "</h3>" +
+        table([L("类别", "Class"), L("来源", "Source"), L("权重", "Weight")], w_rows),
         extra=source_support_html(O("05_EVM/stats/evm_source_support.tsv"),
                                   O("05_EVM/stats/evm_source_combinations.tsv"), figdir, "evm"))))
 
@@ -870,16 +1139,32 @@ def main():
         body = [l for l in lines if not l[0].startswith("#")]
         if body:
             h, r = body[0], body[1:]
-    rparts = ["<p>EVM 与 EviAnn 编码基因按 CDS 在同一条链上的重叠划分为位点，按 CDS 内含子链比较：</p><ul>"
-              "<li>R1 一致：保留 EVM 的 CDS，引入 EviAnn 的 UTR 和其它完整异构体</li>"
-              "<li>R2 EVM 缺失：EviAnn 基因有完整 ORF、RNA 支持且 CDS 与 TE 重叠不超过阈值时补入</li>"
-              "<li>R3 结构冲突：EviAnn 内含子链被 RNA 支持而 EVM 不被支持时替换；两者都被支持时把 EviAnn 模型加为异构体</li>"
-              "<li>R4 拆分 / 融合：有 RNA 支持时采用 EviAnn 的结构，有 reads 连接两个基因时保留融合；证据不足时保留 EVM 并标记 needs_review</li>"
-              "<li>RNA 支持：有长读时为长读内含子链与模型完全一致；只有短读时，1 个内含子看剪接 reads（B：绝对数与相对竞争内含子的比例），"
-              "≥ 2 个内含子还要求 StringTie 组装出相同的内含子链（A 且 B），单外显子模型看单外显子 StringTie 转录本（C）；"
-              "决策表 support_basis 列记录依据</li>"
-              "<li>R5 EVM 独有：检查蛋白、RNA、BRAKER4 证据，没有证据的标记 refine_support=none</li>"
-              "<li>R6 lncRNA：单独输出，不参与合并</li></ul>" + refine_rules_html(a.config)]
+    rparts = [L("<p>EVM 与 EviAnn 编码基因按 CDS 在同一条链上的重叠划分为位点，按 CDS 内含子链比较：</p><ul>"
+                "<li>R1 一致：保留 EVM 的 CDS，引入 EviAnn 的 UTR 和其它完整异构体</li>"
+                "<li>R2 EVM 缺失：EviAnn 基因有完整 ORF、RNA 支持且 CDS 与 TE 重叠不超过阈值时补入</li>"
+                "<li>R3 结构冲突：EviAnn 内含子链被 RNA 支持而 EVM 不被支持时替换；两者都被支持时把 EviAnn 模型加为异构体</li>"
+                "<li>R4 拆分 / 融合：有 RNA 支持时采用 EviAnn 的结构，有 reads 连接两个基因时保留融合；证据不足时保留 EVM 并标记 needs_review</li>"
+                "<li>RNA 支持：有长读时为长读内含子链与模型完全一致；只有短读时，1 个内含子看剪接 reads（B：绝对数与相对竞争内含子的比例），"
+                "≥ 2 个内含子还要求 StringTie 组装出相同的内含子链（A 且 B），单外显子模型看单外显子 StringTie 转录本（C）；"
+                "决策表 support_basis 列记录依据</li>"
+                "<li>R5 EVM 独有：检查蛋白、RNA、BRAKER4 证据，没有证据的标记 refine_support=none</li>"
+                "<li>R6 lncRNA：单独输出，不参与合并</li></ul>",
+                "<p>EVM and EviAnn coding genes are grouped into loci by CDS overlap on the same strand and compared "
+                "by their CDS intron chains:</p><ul>"
+                "<li>R1 identical: EVM's CDS is kept, EviAnn's UTRs and other complete isoforms are added</li>"
+                "<li>R2 missing in EVM: an EviAnn gene is added when it has a complete ORF, RNA support and a CDS "
+                "overlap with TEs below the threshold</li>"
+                "<li>R3 structural conflict: replaced when EviAnn's intron chain is supported by RNA and EVM's is not; "
+                "when both are supported the EviAnn model is added as an isoform</li>"
+                "<li>R4 split / fusion: EviAnn's structure is taken with RNA support; a fusion is kept when reads "
+                "connect the two genes; with insufficient evidence EVM is kept and marked needs_review</li>"
+                "<li>RNA support: with long reads, a long-read intron chain identical to the model; with short reads "
+                "only, junction reads for 1 intron (B: absolute count and ratio to competing introns), plus an "
+                "identical StringTie intron chain for ≥ 2 introns (A and B), and a single-exon StringTie transcript for "
+                "single-exon models (C); the support_basis column of the decision table records the basis</li>"
+                "<li>R5 EVM only: protein, RNA and BRAKER4 evidence is checked; genes without evidence are marked "
+                "refine_support=none</li>"
+                "<li>R6 lncRNA: written separately, not merged</li></ul>") + refine_rules_html(a.config)]
     rparts += [f"<p class='muted'>{html.escape(n_)}</p>" for n_ in notes]
     if h:
         c = Counter((x[h.index("rule")], x[h.index("action")]) for x in r)
@@ -892,24 +1177,31 @@ def main():
         cols = [rule_col.get(k[0][:2], "#c8553d") for k in gkeys]
         rparts.append(bar_figure(
             [f"{k[0]} {k[1]}" for k in gkeys], [cg[k] for k in gkeys], "loci", figdir, "refine_rules",
-            ("修正规则的处理结果。", "每个位点（EVM 与 EviAnn 编码基因按同链 CDS 重叠分组）按适用的规则和处理方式计数；"
-             "merge_utr (+isoforms) 合并了引入不同数目异构体的情况，明细见下表。颜色区分规则。"),
+            (L("修正规则的处理结果。", "Outcome of the refinement rules."),
+             L("每个位点（EVM 与 EviAnn 编码基因按同链 CDS 重叠分组）按适用的规则和处理方式计数；"
+               "merge_utr (+isoforms) 合并了引入不同数目异构体的情况，明细见下表。颜色区分规则。",
+               "Loci (EVM and EviAnn coding genes grouped by CDS overlap on the same strand) counted by the rule "
+               "applied and the action taken; merge_utr (+isoforms) combines the cases with different numbers of "
+               "added isoforms (details in the table). Colours distinguish the rules.")),
             colors=cols, legend=[(k, v) for k, v in (("R1", "#2f6fb0"), ("R2", "#5a9e6f"), ("R3", "#e0a43a"),
                                                        ("R4", "#c8553d"), ("R5", "#8c6bb1"))
                                  if any(x[0].startswith(k) for x in gkeys)], values_text="{:.0f}"))
-        rparts.append(table(["规则", "处理", "位点数"], [[k[0], k[1], c[k]] for k in keys]))
+        rparts.append(table([L("规则", "Rule"), L("处理", "Action"), L("位点数", "Loci")],
+                            [[k[0], k[1], c[k]] for k in keys]))
         review = [x for x in r if "needs_review" in x[h.index("note")]]
         if review:
-            rparts.append(f"<h3>需要人工检查的位点（{len(review)} 个）</h3>" + table(h, review, limit=50))
-        rparts.append("<details><summary>全部决策（前 200 行）</summary>" + table(h, r, limit=200) + "</details>")
-    S.append(("refine", "05_EVM 修正（EVM vs EviAnn）", "".join(rparts)))
+            rparts.append("<h3>" + L(f"需要人工检查的位点（{len(review)} 个）", f"Loci to check manually ({len(review)})") +
+                          "</h3>" + table(h, review, limit=50))
+        rparts.append("<details><summary>" + L("全部决策（前 200 行）", "All decisions (first 200 rows)") +
+                      "</summary>" + table(h, r, limit=200) + "</details>")
+    S.append(("refine", L("05_EVM 修正（EVM vs EviAnn）", "05_EVM Refinement (EVM vs EviAnn)"), "".join(rparts)))
 
     # filtering
     h, r = read_tsv(O("05_EVM/final/removed_genes.tsv"))
     fparts = []
     if h:
         c = Counter(x[1].split("_")[0] for x in r)
-        fparts.append(table(["原因", "基因数"], sorted(c.items())))
+        fparts.append(table([L("原因", "Reason"), L("基因数", "Genes")], sorted(c.items())))
     dec = O("05_EVM/final/filter_decisions.tsv")
     if os.path.exists(dec):
         rows_ = [l.rstrip("\n").split("\t") for l in open(dec) if l.strip()]
@@ -930,17 +1222,22 @@ def main():
                 for k in ("rna_stringtie", "rna_eviann", "rna_braker4"):
                     if x[ix[k]] == "yes":
                         by[k] += 1
-            summ = [["参与过滤的基因", len(body)],
-                    [f"TE 重叠 > {thr}", len(high_te)],
-                    ["其中因有 RNA 证据而保留", len(rescued)],
-                    ["　StringTie 支持", by["rna_stringtie"]], ["　EviAnn 支持", by["rna_eviann"]],
-                    ["　BRAKER4 gene_support 支持", by["rna_braker4"]],
-                    ["有 TEsorter 命中（仅记录）", sum(x[ix["tesorter"]] != "-" for x in body)]]
-            fparts.append("<h3>TE 过滤明细</h3>" + "".join(f"<p class='muted'>{html.escape(n_)}</p>" for n_ in notes) +
-                          table(["项目", "数目"], summ))
-    S.append(("filter", "05_EVM 过滤",
-              "<p>基因 CDS 与 TE 重叠超过阈值且没有 RNA 证据时才剔除；CDS 过短的模型单独剔除；TEsorter 只记录。</p>" +
-              "".join(fparts)))
+            summ = [[L("参与过滤的基因", "Genes checked by the filter"), len(body)],
+                    [L(f"TE 重叠 > {thr}", f"TE overlap > {thr}"), len(high_te)],
+                    [L("其中因有 RNA 证据而保留", "of these kept because of RNA evidence"), len(rescued)],
+                    [L("　StringTie 支持", "  StringTie support"), by["rna_stringtie"]],
+                    [L("　EviAnn 支持", "  EviAnn support"), by["rna_eviann"]],
+                    [L("　BRAKER4 gene_support 支持", "  BRAKER4 gene_support support"), by["rna_braker4"]],
+                    [L("有 TEsorter 命中（仅记录）", "TEsorter hits (recorded only)"),
+                     sum(x[ix["tesorter"]] != "-" for x in body)]]
+            fparts.append("<h3>" + L("TE 过滤明细", "TE filter details") + "</h3>" +
+                          "".join(f"<p class='muted'>{html.escape(n_)}</p>" for n_ in notes) +
+                          table([L("项目", "Item"), L("数目", "Count")], summ))
+    S.append(("filter", L("05_EVM 过滤", "05_EVM Filtering"),
+              "<p>" + L("基因 CDS 与 TE 重叠超过阈值且没有 RNA 证据时才剔除；CDS 过短的模型单独剔除；TEsorter 只记录。",
+                        "A gene is removed only when its CDS overlap with TEs exceeds the threshold and it has no RNA "
+                        "evidence; models with too short a CDS are removed separately; TEsorter hits are only "
+                        "recorded.") + "</p>" + "".join(fparts)))
 
     # final gene set
     ch, cr = read_tsv(O("05_EVM/stats/all_sets_stats.tsv"))
@@ -956,70 +1253,101 @@ def main():
         size = os.path.getsize(f_)
         if f_.endswith((".fa", ".faa", ".fasta")):
             n_rec = sum(1 for l in open(f_) if l.startswith(">"))
-            kind = "序列"
+            kind = L("序列", "sequences")
         else:
             n_rec = sum(1 for l in open(f_) if "\tgene\t" in l)
-            kind = "基因"
+            kind = L("基因", "genes")
         files.append([os.path.relpath(f_, a.outdir), f"{size / 1e6:.2f} MB", f"{n_rec} {kind}"])
-    S.append(("finalset", "05_EVM 最终注释结果", annotation_section(
+    pfx = html.escape(a.prefix)
+    S.append(("finalset", L("05_EVM 最终注释结果", "05_EVM Final annotation"), annotation_section(
         O, "final", O("05_EVM/stats/final_stats.tsv"), O("05_EVM/stats/final_distributions.tsv"),
         O("05_EVM/qc/final"), figdir,
-        "<p>最终基因集：EVM 整合 → 与 EviAnn 比较修正 → TE / 长度过滤 → 重新命名并还原原始序列名。"
-        "lncRNA 来自 EviAnn，单独输出。</p>"
-        "<div class='note'>主结果（<code>" + html.escape(a.prefix) + ".gff3</code> 及 cds/pep/cdna）每个基因只保留一个转录本："
-        "CDS 最长者，CDS 等长时取转录本最长者；本节统计、BUSCO/OMArk 和功能注释都基于主结果。"
-        "包含全部异构体的结果另存为 <code>" + html.escape(a.prefix) + ".all_isoforms.*</code>。</div>" +
-        (table(["项目", "数目"], [[k, v] for k, v in kv_file(O("05_EVM/final/isoform_selection.tsv"))
-                                 if k != "item"] +
+        "<p>" + L("最终基因集：EVM 整合 → 与 EviAnn 比较修正 → TE / 长度过滤 → 重新命名并还原原始序列名。"
+                  "lncRNA 来自 EviAnn，单独输出。",
+                  "Final gene set: EVM integration → refinement against EviAnn → TE / length filter → renaming and "
+                  "restoring the original sequence names. lncRNAs come from EviAnn and are written separately.") +
+        "</p><div class='note'>" +
+        L(f"主结果（<code>{pfx}.gff3</code> 及 cds/pep/cdna）每个基因只保留一个转录本："
+          "CDS 最长者，CDS 等长时取转录本最长者；本节统计、BUSCO/OMArk 和功能注释都基于主结果。"
+          f"包含全部异构体的结果另存为 <code>{pfx}.all_isoforms.*</code>。",
+          f"The main result (<code>{pfx}.gff3</code> and cds/pep/cdna) keeps one transcript per gene: the one with the "
+          "longest CDS, with equal CDS the longest transcript; the statistics of this section, BUSCO/OMArk and the "
+          f"functional annotation are based on the main result. The result with all isoforms is in "
+          f"<code>{pfx}.all_isoforms.*</code>.") + "</div>" +
+        (table([L("项目", "Item"), L("数目", "Count")],
+               [[k, v] for k, v in kv_file(O("05_EVM/final/isoform_selection.tsv")) if k != "item"] +
                ([["transcripts_with_internal_stop (kept, internal_stop=yes)",
                   str(max(0, len(open(O("05_EVM/final/internal_stops.tsv")).read().splitlines()) - 1))]]
                 if os.path.exists(O("05_EVM/final/internal_stops.tsv")) else []))
          if os.path.exists(O("05_EVM/final/isoform_selection.tsv")) else "") +
-        "<h3>各阶段基因数</h3>" + table(["阶段", "基因", "转录本"], prog),
+        "<h3>" + L("各阶段基因数", "Genes per stage") + "</h3>" +
+        table([L("阶段", "Stage"), L("基因", "Genes"), L("转录本", "Transcripts")], prog),
         extra=source_support_html(O("05_EVM/stats/final_source_support.tsv"),
                                   O("05_EVM/stats/final_source_combinations.tsv"), figdir, "final") +
               naming_html(O("05_EVM/final/id_map.tsv"), a.prefix) +
-              "<h3>输出文件</h3>" + table(["文件", "大小", "记录数"], files))))
+              "<h3>" + L("输出文件", "Output files") + "</h3>" +
+              table([L("文件", "File"), L("大小", "Size"), L("记录数", "Records")], files))))
 
     # function
     F = lambda n: O("06_Function/stats", n + ".tsv")
-    fparts = ["<p>对最终基因集主结果的蛋白（每个基因一个转录本）进行 InterProScan 和 eggNOG-mapper 注释，"
-              "统计均以基因为单位。</p>"]
+    fparts = ["<p>" + L("对最终基因集主结果的蛋白（每个基因一个转录本）进行 InterProScan 和 eggNOG-mapper 注释，"
+                        "统计均以基因为单位。完整的 InterProScan 结果见 06_Function/interproscan/。",
+                        "The proteins of the main result of the final gene set (one transcript per gene) are annotated "
+                        "with InterProScan and eggNOG-mapper; all statistics count genes. The complete InterProScan "
+                        "result is in 06_Function/interproscan/.") + "</p>"]
     oh, orows = read_tsv(F("overview"))
     if oh:
         keep = [x for x in orows if x[0] in ("InterProScan only", "both", "eggNOG-mapper only", "neither (unannotated)")]
         fig = bar_figure([x[0] for x in keep], [float(x[2]) for x in keep], "% genes", figdir, "function_overview", (
-            "功能注释来源。", "最终基因中被 InterProScan 与 eggNOG-mapper 都注释、只被其一注释、或都没有注释的基因占比。"),
+            L("功能注释来源。", "Sources of the functional annotation."),
+            L("最终基因中被 InterProScan 与 eggNOG-mapper 都注释、只被其一注释、或都没有注释的基因占比。",
+              "Share of final genes annotated by both InterProScan and eggNOG-mapper, by only one of them, or by "
+              "neither.")),
             values_text="{:.1f}%")
-        fparts.append("<h3>总览</h3>" + table(oh, orows) + fig)
+        fparts.append("<h3>" + L("总览", "Overview") + "</h3>" + table(oh, orows) + fig)
     h, r = read_tsv(O("06_Function/merged/function_stats.tsv"))
     if h:
         # Preferred_name / Description are eggNOG name and description fields written to the GFF3
         # (gene_name= / product=), not annotation categories: table only, not in the figure
-        fields = {"Preferred_name": "基因名（gene_name，eggNOG Preferred_name）",
-                  "Description": "功能描述（product，eggNOG Description）"}
+        fields = {"Preferred_name": L("基因名（gene_name，eggNOG Preferred_name）",
+                                      "gene name (gene_name, eggNOG Preferred_name)"),
+                  "Description": L("功能描述（product，eggNOG Description）", "description (product, eggNOG Description)")}
         cats = [x for x in r if x[0] not in fields]
         rows_ = [[fields.get(x[0], x[0])] + x[1:] for x in r]
-        fparts.append("<h3>各类注释的基因数</h3>" +
+        fparts.append("<h3>" + L("各类注释的基因数", "Genes per annotation category") + "</h3>" +
                       bar_figure([x[0] for x in cats], [float(x[2]) for x in cats], "% genes", figdir, "function_rates", (
-                          "各类功能注释的覆盖率。", "有该类注释的基因占最终基因的百分比。any = 至少有一类；InterPro / Pfam 来自 InterProScan，"
-                          "COG、KEGG、EC 来自 eggNOG-mapper，GO 为两者合并（灰色）。基因名和功能描述不是注释类别，只列在下表。"),
+                          L("各类功能注释的覆盖率。", "Coverage of the annotation categories."),
+                          L("有该类注释的基因占最终基因的百分比。any = 至少有一类；InterPro / Pfam 来自 InterProScan，"
+                            "COG、KEGG、EC 来自 eggNOG-mapper，GO 为两者合并（灰色）。基因名和功能描述不是注释类别，只列在下表。",
+                            "Genes with the category as % of final genes. any = at least one category; InterPro / Pfam "
+                            "from InterProScan, COG, KEGG, EC from eggNOG-mapper, GO from both combined (grey). Gene "
+                            "names and descriptions are not categories and are listed in the table only.")),
                           colors=[FUNC_SRC_COL.get(x[0], "#999999") for x in cats],
                           legend=[("InterProScan", "#2f6fb0"), ("eggNOG-mapper", "#e0a43a"), ("both (merged)", "#999999")],
                           values_text="{:.1f}%") +
                       table(h, rows_) +
-                      "<p class='muted'>基因名和功能描述由 eggNOG-mapper 从直系同源基因转移而来，分别写入最终 GFF3 "
-                      "（06_Function/merged/&lt;前缀&gt;.func.gff3）的 gene_name= 和 product= 属性。基因名只在同源基因有公认名称时才给出，"
-                      "覆盖率低是正常的；功能描述在 eggNOG 找到同源组时一般都有，覆盖率通常与 COG 相同。</p>")
+                      "<p class='muted'>" +
+                      L("基因名和功能描述由 eggNOG-mapper 从直系同源基因转移而来，分别写入最终 GFF3 "
+                        "（06_Function/merged/&lt;前缀&gt;.func.gff3）的 gene_name= 和 product= 属性。基因名只在同源基因有公认名称时才给出，"
+                        "覆盖率低是正常的；功能描述在 eggNOG 找到同源组时一般都有，覆盖率通常与 COG 相同。",
+                        "Gene names and descriptions are transferred by eggNOG-mapper from orthologs and written to the "
+                        "gene_name= and product= attributes of the final GFF3 (06_Function/merged/&lt;prefix&gt;"
+                        ".func.gff3). A gene name is given only when the orthologs have an established name, so low "
+                        "coverage is normal; a description is usually present whenever eggNOG finds an orthologous "
+                        "group, with coverage similar to COG.") + "</p>")
     h, r = read_tsv(F("interpro_databases"))
     if h:
-        fparts.append("<h3>InterProScan 各成员数据库</h3>" +
+        fparts.append("<h3>" + L("InterProScan 各成员数据库", "InterProScan member databases") + "</h3>" +
                       bar_figure([x[0] for x in r if float(x[2]) > 0], [float(x[2]) for x in r if float(x[2]) > 0],
                                  "% genes", figdir, "interpro_databases", (
-                                     "InterProScan 各成员数据库的命中率。", "被该数据库命中的基因占最终基因的百分比（没有命中的数据库不画）。"),
+                                     L("InterProScan 各成员数据库的命中率。", "Hit rates of the InterProScan member databases."),
+                                     L("被该数据库命中的基因占最终基因的百分比（没有命中的数据库不画）。",
+                                       "Genes hit by the database as % of final genes (databases without hits are not "
+                                       "shown).")),
                                  values_text="{:.1f}%") +
                       table(h, r))
-    for n_, title in (("top_pfam", "最常见的 Pfam 结构域"), ("top_interpro", "最常见的 InterPro 条目")):
+    for n_, title in (("top_pfam", L("最常见的 Pfam 结构域", "Most frequent Pfam domains")),
+                      ("top_interpro", L("最常见的 InterPro 条目", "Most frequent InterPro entries"))):
         h, r = read_tsv(F(n_))
         if h and r:
             fparts.append(f"<h3>{title}</h3>" + table(h, r))
@@ -1029,7 +1357,8 @@ def main():
     if gh and gr:
         go_html += table(gh, gr)
     elif th:
-        go_html += "<p class='muted'>未提供 GO 本体文件（function.go_obo），只显示 GO 编号，不分 BP/MF/CC。</p>"
+        go_html += "<p class='muted'>" + L("未提供 GO 本体文件（function.go_obo），只显示 GO 编号，不分 BP/MF/CC。",
+                                           "No GO ontology file (function.go_obo): GO IDs only, without BP/MF/CC.") + "</p>"
     if th and tr:
         go_html += table(th, tr)
     if go_html:
@@ -1038,17 +1367,22 @@ def main():
     ph, pr = read_tsv(F("kegg_top_pathways"))
     if kh:
         fparts.append("<h3>KEGG</h3>" + table(kh, kr) +
-                      ("<p class='muted'>最常见的通路（map 编号）：</p>" + table(ph, pr) if pr else ""))
+                      ("<p class='muted'>" + L("最常见的通路（map 编号）：", "Most frequent pathways (map IDs):") + "</p>" +
+                       table(ph, pr) if pr else ""))
     ch_, cr_ = read_tsv(F("cog_categories"))
     if ch_ and cr_:
-        fparts.append("<h3>COG 功能分类（eggNOG-mapper）</h3>" +
+        fparts.append("<h3>" + L("COG 功能分类（eggNOG-mapper）", "COG functional categories (eggNOG-mapper)") + "</h3>" +
                       bar_figure([f"{x[0]}: {x[1]}" for x in cr_], [int(x[2]) for x in cr_], "genes", figdir,
-                                 "cog_categories", ("COG 功能分类。", "eggNOG-mapper 给出的 COG 类别的基因数；一个基因可属于多个类别，"
-                                                    "S = 功能未知。"), wrap=48, values_text="{:.0f}") + table(ch_, cr_))
+                                 "cog_categories", (L("COG 功能分类。", "COG functional categories."),
+                                                    L("eggNOG-mapper 给出的 COG 类别的基因数；一个基因可属于多个类别，S = 功能未知。",
+                                                      "Genes per COG category from eggNOG-mapper; a gene can belong to "
+                                                      "several categories, S = function unknown.")),
+                                 wrap=48, values_text="{:.0f}") + table(ch_, cr_))
     lh, lr = read_tsv(F("eggnog_levels"))
     if lh and lr:
-        fparts.append("<h3>eggNOG 注释所在的分类层级</h3>" + table(lh, lr))
-    S.append(("function", "06_Function 功能注释", "".join(fparts)))
+        fparts.append("<h3>" + L("eggNOG 注释所在的分类层级", "Taxonomic levels of the eggNOG annotations") + "</h3>" +
+                      table(lh, lr))
+    S.append(("function", L("06_Function 功能注释", "06_Function Functional annotation"), "".join(fparts)))
     # appendix
     vers = []
     for f in sorted(glob.glob(O("*/logs/versions/*.txt"))):
@@ -1056,37 +1390,79 @@ def main():
         vers.append([os.path.relpath(f, a.outdir), (txt[0] if txt else "")[:120]])
     scripts = [[os.path.relpath(f, a.outdir)] for f in sorted(glob.glob(O("*/scripts/*.sh")))]
     cfg = html.escape(open(a.config).read()) if os.path.exists(a.config) else ""
-    S.append(("appendix", "附录：软件版本、脚本索引、参数快照",
-              "<h3>软件版本</h3>" + table(["文件", "版本信息（首行）"], vers) +
-              "<h3>各步骤脚本</h3>" + table(["脚本"], scripts) +
+    S.append(("appendix", L("附录：软件版本、脚本索引、参数快照", "Appendix: software versions, scripts, configuration"),
+              "<h3>" + L("软件版本", "Software versions") + "</h3>" +
+              table([L("文件", "File"), L("版本信息（首行）", "Version (first line)")], vers) +
+              "<h3>" + L("各步骤脚本", "Scripts of all steps") + "</h3>" + table([L("脚本", "Script")], scripts) +
               f"<h3>config</h3><pre>{cfg}</pre>"))
 
     banner = ""
     if a.no_rna:   # sections that need RNA-seq are not produced; say so prominently
         S = [x for x in S if x[0] not in ("rnaqc", "rnaalign", "eviann")]
-        banner = ("<div class='note'><b>无 RNA 模式</b>（rna.allow_none: true）：未使用 RNA-seq。"
-                  "BRAKER4 为 EP 模式（只用蛋白证据），不运行 EviAnn、StringTie，GeMoMa 不使用 RNA 剪接证据；"
-                  "EVM 只整合 BRAKER4、GeMoMa 和 miniprot，权重调优只用蛋白证据打分；修正步骤没有 EviAnn 可比较，"
-                  "所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。"
-                  "结果没有 UTR、可变剪接和 lncRNA，基因结构的可靠性低于有 RNA 的注释。</div>")
+        banner = ("<div class='note'><b>" + L("无 RNA 模式", "No-RNA mode") + "</b>" +
+                  L("（rna.allow_none: true）：未使用 RNA-seq。"
+                    "BRAKER4 为 EP 模式（只用蛋白证据），不运行 EviAnn、StringTie，GeMoMa 不使用 RNA 剪接证据；"
+                    "EVM 只整合 BRAKER4、GeMoMa 和 miniprot，权重调优只用蛋白证据打分；修正步骤没有 EviAnn 可比较，"
+                    "所有位点按 R5 检查蛋白 / BRAKER4 证据；最终过滤以蛋白证据代替 RNA 证据。"
+                    "结果没有 UTR、可变剪接和 lncRNA，基因结构的可靠性低于有 RNA 的注释。",
+                    " (rna.allow_none: true): no RNA-seq was used. BRAKER4 runs in EP mode (protein evidence only), "
+                    "EviAnn and StringTie are not run, GeMoMa uses no RNA splice evidence; EVM combines BRAKER4, GeMoMa "
+                    "and miniprot only, and the weight tuning scores with protein evidence only; the refinement has no "
+                    "EviAnn to compare with and checks every locus by R5 for protein / BRAKER4 evidence; the final "
+                    "filter uses protein evidence instead of RNA evidence. The result has no UTRs, alternative isoforms "
+                    "or lncRNAs, and gene structures are less reliable than with RNA.") + "</div>")
 
     def nav_item(k, t):
         step, _, rest = t.partition(" ")
         if re.match(r"^\d\d_", step) and rest:                  # "05_EVM 修正（…）" -> step label + title
             return f"<a href='#{k}'><span class='step'>{html.escape(step)}</span>{html.escape(rest)}</a>"
         return f"<a href='#{k}'>{html.escape(t)}</a>"
-    nav = ("<div class='navtitle'>目录</div>" + "".join(nav_item(k, t) for k, t, _ in S) +
-           "<a class='top' href='#top'>↑ 回到顶部</a>")
+    other = a.other_name.get(LANG)
+    switch = (f"<div class='lang'><a href='{html.escape(other)}'>" + L("English version", "中文版") + "</a></div>"
+              if other else "")
+    nav = (switch + "<div class='navtitle'>" + L("目录", "Contents") + "</div>" +
+           "".join(nav_item(k, t) for k, t, _ in S) +
+           "<a class='top' href='#top'>" + L("↑ 回到顶部", "↑ Back to top") + "</a>")
     body = number_figures("".join(f"<section id='{k}'><h2>{html.escape(t)}</h2>{c}</section>" for k, t, c in S))
-    os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    with open(a.out, "w") as fh:
-        fh.write(f"<!doctype html><html lang='zh'><head><meta charset='utf-8'>"
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    title = L(f"{pfx} 注释报告", f"{pfx} annotation report")
+    h1 = L(f"{pfx} 基因组注释统计报告", f"{pfx} genome annotation report")
+    gen = L("由 Concordia 基因组注释流程（Snakemake）自动生成",
+            "Generated automatically by the Concordia genome annotation workflow (Snakemake)")
+    with open(out, "w") as fh:
+        fh.write(f"<!doctype html><html lang='{LANG}'><head><meta charset='utf-8'>"
                  f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                 f"<title>{html.escape(a.prefix)} 注释报告</title><style>{CSS}</style></head>"
+                 f"<title>{title}</title><style>{CSS}</style></head>"
                  f"<body><div class='layout'><nav class='side'>{nav}</nav>"
-                 f"<main><h1 id='top'>{html.escape(a.prefix)} 基因组注释统计报告</h1>"
-                 f"<p class='muted'>由 Concordia 基因组注释流程（Snakemake）自动生成</p>{banner}{body}</main></div>"
+                 f"<main><h1 id='top'>{h1}</h1>"
+                 f"<p class='muted'>{gen}</p>{banner}{body}</main></div>"
                  f"<script>{NAV_JS}</script></body></html>")
+
+
+def main():
+    global LANG
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--outdir", required=True, help="pipeline result root (contains 00_Data ...)")
+    ap.add_argument("--prefix", required=True)
+    ap.add_argument("--braker4-mode", required=True)
+    ap.add_argument("--eviann-tag", required=True, help="EviAnn input summary, e.g. '6 x bam + 1 x bam_isoseq'")
+    ap.add_argument("--config", required=True)
+    ap.add_argument("--eviann-proteins", default="homologs",
+                    help="protein set given to EviAnn: swissprot | homologs | none (or free text)")
+    ap.add_argument("--homologs", nargs="*", default=[], help="homologous species names (per-species QC dirs)")
+    ap.add_argument("--no-rna", action="store_true", help="annotation without RNA-seq (rna.allow_none)")
+    ap.add_argument("--out-zh", help="Chinese report")
+    ap.add_argument("--out-en", help="English report")
+    a = ap.parse_args()
+    outs = [(lang, p) for lang, p in (("zh", a.out_zh), ("en", a.out_en)) if p]
+    if not outs:
+        ap.error("give --out-zh and/or --out-en")
+    # link from each version to the other (same directory: file name only)
+    a.other_name = ({"zh": os.path.basename(a.out_en), "en": os.path.basename(a.out_zh)}
+                    if a.out_zh and a.out_en else {})
+    for lang, out in outs:
+        LANG = lang
+        build(a, out)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,8 @@ rna:
   # platform 取值: pacbio_isoseq | pacbio_hifi | ont_cdna | ont_drna
   #   PacBio: minimap2 -ax splice:hq -uf；进入 BRAKER4(isoseq_bam)、EviAnn、EVM
   #   ONT   : minimap2 -ax splice (drna 加 -uf -k14)；不进入 BRAKER4，仅用于 EviAnn、EVM、refine
-  #   EviAnn 标签: 短读+长读=bam_mix；仅短读=bam；仅长读(PacBio 或 ONT)=bam_isoseq（ONT 为暂定方案）
+  #   EviAnn：每个样本一行（用该样本自己的比对结果）：短读 bam，长读 bam_isoseq（ONT 为暂定方案）；
+  #     lncRNA 需要 ≥ 2 个样本（EviAnn 只保留至少在 2 个样本中检测到的 lncRNA）
 
 homologs: "tests/data/homologs.tsv"  # 列: name genome gff3 [protein]
 orthodb_proteins: "tests/data/orthodb.fa"

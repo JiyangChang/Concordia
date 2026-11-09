@@ -207,7 +207,7 @@ $SM --profile $A/profiles/local data_qc
 - **Debugging a step:** read the `.err` in `<step directory>/logs/`, activate the environment named in the script
   header, and re-run that step alone with `bash <step directory>/scripts/<number>_<rule>.sh`.
 - **Complete example:** all steps from setup to submission on a SLURM cluster are in `example_slurm.md`.
-- **Results:** `<outdir>/05_EVM/final/` holds the final annotation, `<outdir>/07_Report/annotation_report.html` the
+- **Results:** `<outdir>/05_EVM/final/` holds the final annotation, `<outdir>/07_Report/annotation_report_en.html` (Chinese: `annotation_report_zh.html`) the
   statistics report.
 
 ## 8. Troubleshooting

@@ -27,7 +27,7 @@ Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证�
 | `04_Homology` | 同源投射与蛋白比对：每个同源物种单独运行 GeMoMa 和 miniprot（各自做 BUSCO/OMArk），再合并（GeMoMa GAF；miniprot 拼接）进入 EVM | GeMoMa, miniprot |
 | `05_EVM` | EVM 整合 → 修正（R1–R6）→ TE / 长度过滤 → 按染色体命名（如 `Mol01G000010`）→ 还原序列名 → 导出；各来源的 BUSCO / OMArk / AGAT 评估 | EVidenceModeler 2.1（Rust 版可选）, AGAT, TEsorter |
 | `06_Function` | 结构域、GO、KEGG、COG（完整 InterProScan 结果 `interproscan/<前缀>.interproscan.{tsv,gff3}`、eggNOG `eggnog/`、合并表 `merged/`） | InterProScan, eggNOG-mapper |
-| `07_Report` | `annotation_report.html`：每一步都有统计表和图 | Python |
+| `07_Report` | `annotation_report_zh.html`（中文）和 `annotation_report_en.html`（英文）：每一步都有统计表和图，内容相同 | Python |
 
 **流程图：**
 - `docs/workflow_main.png` / `.svg`：主流程（有 RNA-seq），按 00–07 目录分组，不含质控和统计步骤；箭头表示"读取其输出"，所有直接依赖都画出。
@@ -83,14 +83,17 @@ my_species/
 
 ## 根据数据自动做出的选择
 
-| 数据 | BRAKER4 | EviAnn 标签 | EVM 转录本证据 | GeMoMa RNA 证据 | 修正步骤的 RNA 支持 |
+| 数据 | BRAKER4 | EviAnn 输入（每个样本一行） | EVM 转录本证据 | GeMoMa RNA 证据 | 修正步骤的 RNA 支持 |
 |---|---|---|---|---|---|
-| 短读 + PacBio (+ONT) | dual | bam_mix | 长读 StringTie | 短读 BAM | 长读内含子链 |
-| 短读 + ONT | ETP（不用 ONT） | bam_mix | 长读 StringTie | 短读 BAM | 长读内含子链 |
+| 短读 + PacBio (+ONT) | dual | 短读：bam；长读：bam_isoseq | 长读 StringTie | 短读 BAM | 长读内含子链 |
+| 短读 + ONT | ETP（不用 ONT） | 短读：bam；ONT：bam_isoseq（暂定） | 长读 StringTie | 短读 BAM | 长读内含子链 |
 | 只有短读 | ETP | bam | 短读 StringTie | 短读 BAM | 短读：剪接 reads（B）+ StringTie 内含子链（A）+ 单外显子（C） |
 | 只有 PacBio | IsoSeq | bam_isoseq | 长读 StringTie | 无（可选长读） | 长读内含子链 |
 | 只有 ONT | EP | bam_isoseq（暂定） | 长读 StringTie | 无（可选长读） | 长读内含子链 |
 | 没有 RNA（需 `rna.allow_none: true`） | EP | 不运行 | 无 | 无 | 无：修正只做 R5 证据检查；过滤以蛋白证据代替 RNA 证据；无 UTR / 可变剪接 / lncRNA |
+
+EviAnn 拿到的是每个样本各自的比对结果，每个样本一行（不是合并后的 BAM）：它对每个样本分别组装，lncRNA 只有在
+至少 2 个样本中检测到（TPM ≥ 0.5）才会保留，所以全部 RNA 只有 1 个样本时不会输出 lncRNA。
 
 这些选择的逻辑在 `workflow/lib/common.py`，测试在 `tests/test_common.py`。
 

@@ -118,7 +118,8 @@ rule stringtie:
         """, env="core", versions="stringtie --version")
 
 
-EVIANN_BAMS, EVIANN_TAG = P.eviann_reads()
+EVIANN_LINES, EVIANN_TAG = P.eviann_reads()
+EVIANN_BAMS = [b for b, _ in EVIANN_LINES]
 
 
 rule eviann_reads:
@@ -128,14 +129,14 @@ rule eviann_reads:
         O("02_RNA/EviAnn/reads.txt"),
     params:
         script=script("02_RNA", "06_eviann_reads"),
-        line=" ".join(EVIANN_BAMS + [EVIANN_TAG]),
+        lines=" ".join(f"'{b} {t}'" for b, t in EVIANN_LINES),
     log:
         **logs("02_RNA", "06_eviann_reads"),
     shell:
-        SH("""
-        # EviAnn tag decided from the data: {EVIANN_TAG} (only-ONT is provisionally bam_isoseq)
-        printf '%s\\n' '{params.line}' > {output}
-        """.replace("{EVIANN_TAG}", EVIANN_TAG))
+        # one line per sample; long reads of ONT are provisionally given as bam_isoseq
+        SH(f"# EviAnn reads file, one line per sample: {EVIANN_TAG}\n" + """
+        printf '%s\\n' {params.lines} > {output}
+        """)
 
 
 EV = config.get("eviann", {}) or {}

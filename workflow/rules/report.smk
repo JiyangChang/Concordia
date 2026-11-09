@@ -36,16 +36,15 @@ rule report:
         O("06_Function/merged/function_stats.tsv"),
         rules.function_stats.output,
     output:
-        O("07_Report/annotation_report.html"),
+        zh=O("07_Report/annotation_report_zh.html"),
+        en=O("07_Report/annotation_report_en.html"),
     params:
         script=script("07_Report", "01_report"),
         out=OUT,
         config=CONFIG_FILE,
         mode=P.braker4_mode(),
         tag=P.eviann_reads()[1],
-        eviann_proteins=("未运行（无 RNA）" if not HAS_RNA else
-                         "UniProt-SwissProt（eviann.swissprot）" if EVIANN_SWISSPROT
-                         else "同源物种蛋白（未设置 eviann.swissprot）"),
+        eviann_proteins="none" if not HAS_RNA else "swissprot" if EVIANN_SWISSPROT else "homologs",
         homologs=" ".join(HOMOLOG_NAMES),
         no_rna="" if HAS_RNA else "--no-rna",
     log:
@@ -54,6 +53,7 @@ rule report:
         "../envs/core.yaml"
     shell:
         SH(PY("make_report.py") + """ --outdir {params.out} --prefix """ + PREFIX + """ \\
-            --braker4-mode {params.mode} --eviann-tag {params.tag} --config {params.config} \
-            --eviann-proteins '{params.eviann_proteins}' --homologs {params.homologs} {params.no_rna} --out {output}
+            --braker4-mode {params.mode} --eviann-tag '{params.tag}' --config {params.config} \
+            --eviann-proteins {params.eviann_proteins} --homologs {params.homologs} {params.no_rna} \\
+            --out-zh {output.zh} --out-en {output.en}
         """, env="core")
