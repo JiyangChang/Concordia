@@ -171,6 +171,11 @@ rule eviann:
         "../envs/eviann.yaml"
     shell:
         SH("""
+        # EviAnn resumes from its own *.success markers: when Snakemake runs this step again (inputs or parameters
+        # changed, or an earlier attempt failed), old markers would make it skip the stages and keep stale results.
+        # Start from a clean state (reads.txt and the outputs of other steps in this directory are kept).
+        rm -f ./*.success ./*.out ./*.err ./*.tmp ./hisat_stringtie.sh ./run_stringtie*.sh
+        rm -rf ./tissue* ./genome.fa.* ./genome.fa ./*.uniq ./*.transdecoder_dir* ./ab_initio ./pipeliner.* ./sts*
         ln -sf {input.genome} genome.fa
         # protein set: {params.prot_note}
         eviann.sh -t {threads} -g genome.fa -r {input.reads} {params.prot_opt} {input.proteins} -m {params.max_intron}
