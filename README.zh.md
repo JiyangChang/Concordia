@@ -35,7 +35,7 @@ Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证�
 - `docs/workflow_rulegraph.png` / `.svg`：全部步骤（示例配置下 103 个，质控和统计步骤为浅灰色）。
 - 修改规则后重新生成：`bash scripts/make_workflow_diagrams.sh`（需要 snakemake 和 graphviz；用 `tests/config.test.yaml` 示例配置，不需要数据库）。
 
-**每一步的命令都会先写成脚本：** `<目录>/scripts/<编号>_<rule>[.<通配符>].sh`，然后再执行；日志写入 `<目录>/logs/`，软件版本写入 `<目录>/logs/versions/`。排查问题时，激活脚本头部注明的环境，直接 `bash` 该脚本即可单独重跑这一步。
+**每一步的命令都会先写成脚本：** `<目录>/scripts/<编号>_<rule>[.<通配符>].sh`，然后再执行；日志写入 `<目录>/logs/`，软件版本写入 `<目录>/logs/versions/`，运行时间、CPU 时间和峰值内存（Snakemake benchmark）写入 `<目录>/logs/benchmarks/`，报告最后一节将其与申请的资源对比并给出调整建议。排查问题时，激活脚本头部注明的环境，直接 `bash` 该脚本即可单独重跑这一步。
 
 ## 快速开始
 

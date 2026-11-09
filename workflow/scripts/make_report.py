@@ -660,6 +660,126 @@ def annotation_section(O, name, stats_tsv, dist_tsv, qc_dir, figdir, intro, extr
     return "".join(parts)
 
 
+def _num(x):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def _hms(sec):
+    if sec is None:
+        return "-"
+    sec = int(round(sec))
+    return f"{sec // 3600}:{sec % 3600 // 60:02d}:{sec % 60:02d}"
+
+
+def _gb(mb):
+    return "-" if mb is None else f"{mb / 1024:.1f}"
+
+
+def resources_html(outdir, requests_tsv, figdir):
+    """Runtime and resources of every job (Snakemake benchmark files <step>/logs/benchmarks/*.tsv) against the
+    requested threads / memory / runtime (07_Report/resource_requests.tsv), per rule with suggestions."""
+    files = sorted(glob.glob(os.path.join(outdir, "*", "logs", "benchmarks", "*.tsv")))
+    if not files:
+        return ""
+    rh, rr = read_tsv(requests_tsv)
+    pats = []                                    # (regex of the benchmark path, rule, threads, mem_mb, runtime)
+    if rh:
+        for x in rr:
+            rx = re.escape(x[4])
+            rx = re.sub(r"\\\{[^}]*\\\}", "[^/]+", rx)  # escaped {wildcard} -> one path component part
+            pats.append((re.compile(rx + "$"), x[0], _num(x[1]), _num(x[2]), _num(x[3])))
+    jobs = []
+    for f_ in files:
+        h, r = read_tsv(f_)
+        if not h or not r:
+            continue
+        v = dict(zip(h, r[-1]))                  # last repeat
+        rel = os.path.relpath(f_, outdir)
+        rule, thr, mem, rt = next(((p[1], p[2], p[3], p[4]) for p in pats if p[0].match(rel)), ("?", None, None, None))
+        wall, cpu, rss = _num(v.get("s")), _num(v.get("cpu_time")), _num(v.get("max_rss"))
+        eff = (100 * cpu / (wall * thr)) if (cpu is not None and wall and thr) else None
+        jobs.append({"step": rel.split("/")[0], "job": os.path.basename(f_)[:-4], "rule": rule, "threads": thr,
+                     "mem": mem, "rt": rt, "wall": wall, "cpu": cpu, "rss": rss, "eff": eff})
+    if not jobs:
+        return ""
+    total_wall = sum(j["wall"] or 0 for j in jobs)
+    # per rule: worst case over its jobs
+    per = {}
+    for j in jobs:
+        per.setdefault(j["rule"], []).append(j)
+    rows, sugg_n = [], 0
+    for rule, js in sorted(per.items(), key=lambda t: -max(j["wall"] or 0 for j in t[1])):
+        thr, mem, rt = js[0]["threads"], js[0]["mem"], js[0]["rt"]
+        wmax = max((j["wall"] or 0) for j in js)
+        rss = max((j["rss"] or 0) for j in js) or None
+        cores = max(((j["cpu"] or 0) / j["wall"]) for j in js if j["wall"]) if any(j["wall"] for j in js) else None
+        eff = (100 * cores / thr) if (cores is not None and thr) else None
+        tips = []
+        if rss and mem:
+            if rss > 0.9 * mem:
+                tips.append(L(f"内存接近或超过申请值，建议 ≥ {int(rss * 1.3 / 1024) + 1}G",
+                              f"memory near or above the request: use ≥ {int(rss * 1.3 / 1024) + 1}G"))
+            elif rss < 0.4 * mem and mem >= 4096:
+                tips.append(L(f"内存用量远低于申请值，可降到约 {max(1, int(rss * 1.5 / 1024) + 1)}G",
+                              f"memory far below the request: about {max(1, int(rss * 1.5 / 1024) + 1)}G is enough"))
+        if eff is not None and thr and thr >= 4 and wmax >= 300 and eff < 40:
+            tips.append(L(f"平均只用到约 {cores:.1f} 个核，可减少 threads",
+                          f"uses about {cores:.1f} cores on average: fewer threads would do"))
+        if rt and wmax > 0.8 * rt * 60:
+            tips.append(L("运行时间接近申请值，建议增大 runtime", "run time close to the request: raise runtime"))
+        sugg_n += bool(tips)
+        rows.append([rule, len(js), _hms(wmax), _hms(sum(j["wall"] or 0 for j in js)),
+                     "-" if thr is None else int(thr), "-" if cores is None else f"{cores:.1f}",
+                     "-" if eff is None else f"{eff:.0f}", _gb(rss), _gb(mem) if mem else L("默认", "default"),
+                     "-" if (not rss or not mem) else f"{100 * rss / mem:.0f}",
+                     _hms(rt * 60) if rt else "-", L("；", "; ").join(tips)])
+    head = [L("规则", "Rule"), L("作业数", "Jobs"), L("最长用时", "Longest"), L("合计用时", "Total"),
+            L("申请线程", "Threads"), L("实际核数", "Cores used"), L("CPU 效率 %", "CPU eff. %"),
+            L("峰值内存 GB", "Peak mem GB"), L("申请内存 GB", "Mem req. GB"), L("内存占比 %", "Mem used %"),
+            L("申请时间", "Runtime req."), L("建议", "Suggestion")]
+    top = sorted(jobs, key=lambda j: -(j["wall"] or 0))[:20]
+    fig = bar_figure([f"{j['step']}/{j['job']}" for j in top], [(j["wall"] or 0) / 3600 for j in top], "hours",
+                     figdir, "runtime_top", (
+                         L("用时最长的步骤。", "Longest-running steps."),
+                         L("实际运行时间（墙钟时间，小时）最长的 20 个作业。", "The 20 jobs with the longest wall-clock "
+                                                                          "time (hours).")), wrap=60,
+                     values_text="{:.2f}")
+    detail = [[j["step"], j["job"], j["rule"], _hms(j["wall"]), _hms(j["cpu"]),
+               "-" if j["threads"] is None else int(j["threads"]), "-" if j["eff"] is None else f"{j['eff']:.0f}",
+               _gb(j["rss"]), _gb(j["mem"]) if j["mem"] else L("默认", "default")]
+              for j in sorted(jobs, key=lambda j: -(j["wall"] or 0))]
+    return ("<p>" + L("每个作业的实际运行时间、CPU 时间和峰值内存由 Snakemake benchmark 记录（"
+                      "&lt;步骤&gt;/logs/benchmarks/*.tsv），与申请的资源（config.yaml 的 resources，未设置的用 profile 默认值）对比，"
+                      "供下次调整 resources 参考。",
+                      "Wall-clock time, CPU time and peak memory of every job are recorded by Snakemake benchmarks "
+                      "(&lt;step&gt;/logs/benchmarks/*.tsv) and compared with the requested resources (resources in "
+                      "config.yaml; profile defaults where not set), as a guide for adjusting resources next time.") +
+            "</p><div class='note'>" +
+            L(f"共 {len(jobs)} 个作业，墙钟时间合计 {_hms(total_wall)}（各作业相加，并行运行时实际耗时更短）；"
+              f"{sugg_n} 条规则有调整建议。",
+              f"{len(jobs)} jobs, {_hms(total_wall)} wall-clock time in total (summed over jobs; less in practice when "
+              f"they run in parallel); suggestions for {sugg_n} rules.") + "</div>"
+            "<p class='muted'>" +
+            L("实际核数 = CPU 时间 / 墙钟时间；CPU 效率 = 实际核数 / 申请线程。峰值内存为 max_rss（含子进程）。"
+              "建议按本次运行的最大值给出（内存留 30–50% 余量）；数据规模不同（例如测试用单条染色体，正式用全基因组）时需按比例放大。"
+              "单机运行时内存和时间只用于调度，不会被强制限制；SLURM 上超过申请值的作业会被终止。"
+              "BRAKER4 以 executor: slurm 运行时，其子作业不计入。",
+              "Cores used = CPU time / wall-clock time; CPU efficiency = cores used / requested threads. Peak memory is "
+              "max_rss (including child processes). Suggestions are based on the maxima of this run (memory with "
+              "30–50% headroom); scale them for other data sizes (e.g. a single chromosome in a test versus the whole "
+              "genome). Running locally, memory and time are only used for scheduling and not enforced; on SLURM jobs "
+              "exceeding the request are killed. With braker4.executor: slurm, BRAKER4's own jobs are not counted.") +
+            "</p><h3>" + L("按规则汇总", "Per rule") + "</h3>" + table(head, rows) + fig +
+            "<details><summary>" + L("全部作业明细", "All jobs") + "</summary>" +
+            table([L("步骤", "Step"), L("作业", "Job"), L("规则", "Rule"), L("墙钟时间", "Wall time"),
+                   L("CPU 时间", "CPU time"), L("申请线程", "Threads"), L("CPU 效率 %", "CPU eff. %"),
+                   L("峰值内存 GB", "Peak mem GB"), L("申请内存 GB", "Mem req. GB")], detail, limit=1000) +
+            "</details>")
+
+
 EVIANN_PROTEINS = {"swissprot": ("UniProt-SwissProt（eviann.swissprot）", "UniProt-SwissProt (eviann.swissprot)"),
                    "homologs": ("同源物种蛋白（未设置 eviann.swissprot）",
                                 "homologous species proteins (eviann.swissprot not set)"),
@@ -1396,6 +1516,10 @@ def build(a, out):
               "<h3>" + L("各步骤脚本", "Scripts of all steps") + "</h3>" + table([L("脚本", "Script")], scripts) +
               f"<h3>config</h3><pre>{cfg}</pre>"))
 
+    res_html = resources_html(a.outdir, a.requests, figdir)
+    if res_html:
+        S.append(("resources", L("运行时间与资源", "Runtime and resources"), res_html))
+
     banner = ""
     if a.no_rna:   # sections that need RNA-seq are not produced; say so prominently
         S = [x for x in S if x[0] not in ("rnaqc", "rnaalign", "eviann")]
@@ -1451,6 +1575,7 @@ def main():
                     help="protein set given to EviAnn: swissprot | homologs | none (or free text)")
     ap.add_argument("--homologs", nargs="*", default=[], help="homologous species names (per-species QC dirs)")
     ap.add_argument("--no-rna", action="store_true", help="annotation without RNA-seq (rna.allow_none)")
+    ap.add_argument("--requests", default="", help="07_Report/resource_requests.tsv (requested resources per rule)")
     ap.add_argument("--out-zh", help="Chinese report")
     ap.add_argument("--out-en", help="English report")
     a = ap.parse_args()

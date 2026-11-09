@@ -142,3 +142,34 @@ rule all:
         O("06_Function/merged", f"{PREFIX}.func.gff3"),
         O("07_Report/annotation_report_zh.html"),
         O("07_Report/annotation_report_en.html"),
+
+
+# ---------- resource records (for the report: requested vs. used) ----------
+# Every step that writes a script also gets a Snakemake benchmark file next to its logs
+# (<step>/logs/benchmarks/<script name>.tsv: wall time, CPU time, peak memory), and its requested resources are
+# collected for the report. Wall time / memory include child processes (e.g. the nested BRAKER4 run with
+# braker4.executor: local; with executor: slurm its own jobs are not counted).
+RESOURCE_REQUESTS = {}
+for _r in workflow.rules:
+    _s = dict(_r.params.items()).get("script") if hasattr(_r.params, "items") else None
+    if not isinstance(_s, str) or "/scripts/" not in _s or not _s.endswith(".sh"):
+        continue
+    if _r.benchmark is None:
+        _r.benchmark_modifier = _r.log_modifier          # what a benchmark: directive would set (same path modifier)
+        _r.benchmark = _s.replace("/scripts/", "/logs/benchmarks/")[:-3] + ".tsv"
+    _res = {k: v for k, v in _r.resources.items() if isinstance(v, int) and k in ("_cores", "mem_mb", "runtime")}
+    RESOURCE_REQUESTS[_r.name] = (_res.get("_cores", 1), _res.get("mem_mb", ""), _res.get("runtime", ""),
+                                  os.path.relpath(str(_r.benchmark), OUT))
+
+
+rule resource_requests:
+    """Requested threads / memory / runtime of every rule (empty = profile default), read by the report."""
+    output:
+        O("07_Report/resource_requests.tsv"),
+    params:
+        req=RESOURCE_REQUESTS,
+    run:
+        with open(output[0], "w") as fh:
+            fh.write("rule\tthreads\tmem_mb\truntime_min\tbenchmark\n")
+            for name, (t, m, rt, bm) in sorted(params.req.items()):
+                fh.write(f"{name}\t{t}\t{m}\t{rt}\t{bm}\n")

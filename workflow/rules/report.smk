@@ -35,6 +35,7 @@ rule report:
         O("05_EVM/final/removed_genes.tsv"),
         O("06_Function/merged/function_stats.tsv"),
         rules.function_stats.output,
+        O("07_Report/resource_requests.tsv"),
     output:
         zh=O("07_Report/annotation_report_zh.html"),
         en=O("07_Report/annotation_report_en.html"),
@@ -47,6 +48,7 @@ rule report:
         eviann_proteins="none" if not HAS_RNA else "swissprot" if EVIANN_SWISSPROT else "homologs",
         homologs=" ".join(HOMOLOG_NAMES),
         no_rna="" if HAS_RNA else "--no-rna",
+        requests=O("07_Report/resource_requests.tsv"),
     log:
         **logs("07_Report", "01_report"),
     conda:
@@ -55,5 +57,5 @@ rule report:
         SH(PY("make_report.py") + """ --outdir {params.out} --prefix """ + PREFIX + """ \\
             --braker4-mode {params.mode} --eviann-tag '{params.tag}' --config {params.config} \
             --eviann-proteins {params.eviann_proteins} --homologs {params.homologs} {params.no_rna} \\
-            --out-zh {output.zh} --out-en {output.en}
+            --requests {params.requests} --out-zh {output.zh} --out-en {output.en}
         """, env="core")

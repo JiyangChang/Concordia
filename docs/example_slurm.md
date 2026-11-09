@@ -18,7 +18,7 @@ In this example the working directory is the analysis directory `/shared/myname/
 | Content | Location |
 |---|---|
 | Analysis results (00_Data … 07_Report) | `/shared/myname/moringa/results/` (`outdir: "results"`) |
-| Script, logs and software versions of every step | `results/<step directory>/scripts/`, `logs/`, `logs/versions/` |
+| Script, logs, software versions, time and memory used of every step | `results/<step directory>/scripts/`, `logs/`, `logs/versions/`, `logs/benchmarks/` |
 | Snakemake's own records, output of each SLURM job | `/shared/myname/moringa/.snakemake/` (job output in `.snakemake/slurm_logs/`) |
 | Log of the main-process job | `/shared/myname/moringa/logs/` (set by `-o` in `run_annotation.sbatch`) |
 | conda environments | `conda-prefix` in the profile |

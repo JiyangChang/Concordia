@@ -348,3 +348,31 @@ def test_english_report(tmp_path):
     # no Chinese left in the English version (apart from the link to the Chinese one; data tables excluded)
     text = re.sub(r"<pre>.*?</pre>|src='data:[^']*'", "", en, flags=re.S).replace("中文版", "")
     assert not re.search(r"[一-鿿　-〿＀-￯]", re.sub(r"<[^>]+>", " ", text))
+
+
+def test_runtime_and_resources(tmp_path):
+    out = str(tmp_path / "res")
+    build(out)
+    bm = "s\th:m:s\tmax_rss\tmax_vms\tmax_uss\tmax_pss\tio_in\tio_out\tmean_load\tcpu_time\n"
+    w(f"{out}/01_Repeat/logs/benchmarks/01_edta.tsv", bm + "7200.5\t2:00:00\t30000.0\t1\t1\t1\t0\t0\t300\t28800.0\n")
+    w(f"{out}/02_RNA/logs/benchmarks/02_hisat2.leaf.tsv", bm + "600\t0:10:00\t3000\t1\t1\t1\t0\t0\t50\t1200\n")
+    w(f"{out}/02_RNA/logs/benchmarks/02_hisat2.root.tsv", bm + "900\t0:15:00\t3500\t1\t1\t1\t0\t0\t50\t1800\n")
+    req = f"{out}/07_Report/resource_requests.tsv"
+    w(req, "rule\tthreads\tmem_mb\truntime_min\tbenchmark\n"
+           "edta\t48\t32768\t120\t01_Repeat/logs/benchmarks/01_edta.tsv\n"
+           "hisat2_align\t16\t32000\t\t02_RNA/logs/benchmarks/02_hisat2.{sample,[^/]+}.tsv\n")
+    en, zh = str(tmp_path / "en.html"), str(tmp_path / "zh.html")
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
+                        "--braker4-mode", "dual", "--eviann-tag", "x", "--config", f"{out}/cfg.yaml",
+                        "--requests", req, "--out-zh", zh, "--out-en", en], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    h = open(en).read()
+    sec = h[h.index("<section id='resources'>"):]
+    assert "3 jobs" in sec and "runtime_top" in sec
+    # edta: 4 cores of 48 used, 29.3 GB of 32 GB (> 90%), 2 h of 2 h requested
+    assert "<td>edta</td><td>1</td><td>2:00:00</td>" in sec and "<td>48</td><td>4.0</td><td>8</td>" in sec
+    assert "memory near or above the request: use ≥ 39G" in sec and "fewer threads" in sec and "raise runtime" in sec
+    # hisat2: two jobs matched through the wildcard pattern; memory far below the request
+    assert "<td>hisat2_align</td><td>2</td><td>0:15:00</td><td>0:25:00</td>" in sec
+    assert "about 6G is enough" in sec
+    assert "运行时间与资源" in open(zh).read()

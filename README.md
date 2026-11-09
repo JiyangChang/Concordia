@@ -38,7 +38,9 @@ several homologous species, the workflow runs the following steps and ends with 
 - Regenerate after changing rules: `bash scripts/make_workflow_diagrams.sh` (needs snakemake and graphviz; uses the example configuration `tests/config.test.yaml`, no databases needed).
 
 **The command of every step is first written to a script:** `<directory>/scripts/<number>_<rule>[.<wildcards>].sh`, which
-is then executed; logs go to `<directory>/logs/`, software versions to `<directory>/logs/versions/`. To debug a step,
+is then executed; logs go to `<directory>/logs/`, software versions to `<directory>/logs/versions/`, run time, CPU time and peak
+memory (Snakemake benchmark) to `<directory>/logs/benchmarks/`; the last section of the report compares them with the
+requested resources and suggests adjustments. To debug a step,
 activate the environment named in the script header and run the script with `bash`.
 
 ## Quick start

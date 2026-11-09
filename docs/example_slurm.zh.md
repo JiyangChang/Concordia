@@ -16,7 +16,7 @@
 | 内容 | 位置 |
 |---|---|
 | 分析结果（00_Data … 07_Report） | `/shared/myname/moringa/results/`（`outdir: "results"`） |
-| 每一步的脚本、日志、软件版本 | `results/<步骤目录>/scripts/`、`logs/`、`logs/versions/` |
+| 每一步的脚本、日志、软件版本、实际用时和内存 | `results/<步骤目录>/scripts/`、`logs/`、`logs/versions/`、`logs/benchmarks/` |
 | Snakemake 自己的记录、各 SLURM 作业的输出 | `/shared/myname/moringa/.snakemake/`（作业输出在 `.snakemake/slurm_logs/`） |
 | 主进程作业的日志 | `/shared/myname/moringa/logs/`（由 `run_annotation.sbatch` 的 `-o` 指定） |
 | conda 环境 | profile 中的 `conda-prefix` |
