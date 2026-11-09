@@ -129,7 +129,10 @@ rule tidk:
         {params.summarise} --windows {output.windows} --seqs {input.seqs} --motif {params.motif} \\
             --min-repeats {params.min_repeats} --out {output.table} --out-summary {output.summary}
         cat {output.summary}
-        """, env="core", workdir="{params.workdir}", versions="tidk --version")
+        """, env="core", workdir="{params.workdir}",
+           # tidk prints "No clades found in the database" on every call (only its "find" command needs that
+           # database; this step uses "search" with the configured motif): keep it out of the version record
+           versions="tidk --version 2>/dev/null")
 
 
 FCS = AQ.get("fcs_gx", {}) or {}
