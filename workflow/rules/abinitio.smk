@@ -17,9 +17,10 @@ rule braker4_inputs:
         masked=SOFTMASKED,
         proteins=PROTEINS,
         bams=[b for b in (B4_BAM, B4_ISO) if b],
-        # only while samples.csv is missing (as busco_ready): existing BRAKER4 runs are not repeated because of it
-        busco=lambda wc: [] if os.path.exists(O("03_Ab_initio/BRAKER4/samples.csv"))
-        else ancient(O("00_Data/busco_datasets/compleasm.ready")),
+        # as busco_ready: left out only for BRAKER4 runs that exist without the flag (older analyses)
+        busco=lambda wc: ancient(O("00_Data/busco_datasets/compleasm.ready"))
+        if os.path.exists(O("00_Data/busco_datasets/compleasm.ready"))
+        or not os.path.exists(O("03_Ab_initio/BRAKER4/samples.csv")) else [],
     output:
         csv=O("03_Ab_initio/BRAKER4/samples.csv"),
         ini=O("03_Ab_initio/BRAKER4/config.ini"),

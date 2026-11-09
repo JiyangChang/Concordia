@@ -88,13 +88,14 @@ def busco_dir(lineage):
 
 
 def busco_ready(output_pattern):
-    """Input function: the dataset flag, only while the BUSCO result itself is missing, so existing results (e.g. of
-    analyses started before this step existed) are not re-run because of it; ancient: a re-created flag triggers
-    nothing either."""
+    """Input function: the dataset flag (ancient: a re-created flag triggers nothing). Left out only when the BUSCO
+    result exists without a flag (analyses started before this step existed), so that such results are not re-run;
+    otherwise always given, so that the set of inputs stays the same from run to run."""
     def f(wildcards):
-        if os.path.exists(output_pattern.format(**wildcards)):
-            return []
-        return ancient(O("00_Data/busco_datasets", f"{wildcards.lineage}.busco.ready"))
+        flag = O("00_Data/busco_datasets", f"{wildcards.lineage}.busco.ready")
+        if os.path.exists(flag) or not os.path.exists(output_pattern.format(**wildcards)):
+            return ancient(flag)
+        return []
     return f
 
 
