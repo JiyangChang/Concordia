@@ -133,6 +133,7 @@ def test_evm_grid(tmp_path):
                                         "tune": {"grid": {"BRAKER4": [1, 2], "transcripts": [6]}}})
     assert [c[1] for c in p.evm_grid()] == [{"BRAKER4": 2, "SR_stringtie": 6}, {"BRAKER4": 1, "SR_stringtie": 6}]
     assert make(tmp_path, evm={"tune": {"enabled": False}}).evm_tune["enabled"] is False
+    assert make(tmp_path).evm_tune["enabled"] is False                         # off by default
 
 
 def test_long_read_counts_column(tmp_path):

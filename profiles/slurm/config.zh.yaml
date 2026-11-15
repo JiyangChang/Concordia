@@ -5,6 +5,9 @@
 snakefile: workflow/Snakefile
 executor: slurm
 jobs: 100                         # 同时排队/运行的作业数上限
+cores: 256                        # 只用于限制单个作业的线程数，须 ≥ config.yaml 中最大的 threads。
+                                  #   不设置时 Snakemake 取主进程可用的 CPU 数（例如主作业用 -c 2 提交时为 2），
+                                  #   每一步都会被压到 2 个线程；这种情况下流程会在启动时停止并提示
 printshellcmds: true
 rerun-incomplete: true
 latency-wait: 120                 # 共享文件系统上输出文件可能延迟出现，等待秒数
@@ -14,6 +17,7 @@ restart-times: 1
 default-resources:
   slurm_partition: "'all'"        # 改成你所在集群的分区（两层引号都保留）
   # slurm_account: "'my_account'" # 集群要求记账账户时填写
+  # slurm_extra: "'--exclude=node[1-4]'"   # 例如排除 CPU 不支持 AVX2 的节点（StringTie 需要）
   mem_mb: 8000                    # 单位 MB，只能写整数：这里写 mem: "8G" 会覆盖所有步骤自己的内存，
                                   #   写 mem_mb: "8G" 则 SLURM 插件无法识别（Snakemake 8.18 / 插件 2.6）
   runtime: "10h"                  # 分钟，或 "10h"、"2d" 这样的时长

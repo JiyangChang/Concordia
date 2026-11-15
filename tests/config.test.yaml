@@ -69,6 +69,7 @@ evm:
   implementation: "standard"
   rust_repo: "external/EVidenceModeler_rust"
   segment_size: 500000           # < 1 Mb
+  tune: {enabled: true}          # 默认关闭；mock 测试打开，以覆盖调优步骤
   overlap_size: null             # null: 按 max_intron 推算 (至少 1-2 个基因长度)
   weights:
     ABINITIO_PREDICTION: {BRAKER4: 2}

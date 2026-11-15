@@ -114,6 +114,14 @@ rule stringtie:
         "../envs/core.yaml"
     shell:
         SH("""
+        # the bioconda StringTie build needs a CPU with AVX2; on older CPUs it dies at once with "Illegal
+        # instruction" (exit 132): say so clearly instead (seen on a cluster with AMD Opteron / Xeon E5 v2 nodes)
+        rc=0; stringtie --version > /dev/null 2>&1 || rc=$?
+        if [ "$rc" -eq 132 ]; then
+            echo "ERROR: StringTie cannot run on $(hostname): its CPU lacks AVX2 (Illegal instruction)." >&2
+            echo "Run the workflow on nodes with AVX2 only: exclude the others with --exclude in slurm_extra of the SLURM profile (see docs/deployment_guide.md)." >&2
+            exit 1
+        fi
         stringtie {params.long} -p {threads} -o {output} {input}
         """, env="core", versions="stringtie --version")
 

@@ -103,16 +103,17 @@ function:
 # 按节点规格设置：单个作业不能超过一个节点（48 核 / 192 GB）；runtime 可写 12h / 3d 等
 resources:
   default:      {threads: 4,  mem: 8G,    runtime: 12h}
-  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  edta:         {threads: 48, mem: 48G,   runtime: 7d}
   braker4:      {threads: 48, mem: 160G,  runtime: 3d}
-  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  eviann:       {threads: 32, mem: 96G,   runtime: 2d}
   gemoma:       {threads: 24, mem: 48G,   runtime: 2d}  # 每个同源物种一个作业，可并行
-  evm:          {threads: 32, mem: 32G,   runtime: 1d}
-  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  gemoma_ere:   {threads: 1,  mem: 16G,   runtime: 12h}  # GeMoMa 的 RNA 证据提取，只运行一次
+  evm:          {threads: 32, mem: 8G,    runtime: 1d}
+  repeatmasker: {threads: 32, mem: 8G,    runtime: 2d}
   interproscan: {threads: 16, mem: 32G,   runtime: 1d}  # function.chunks 个作业并行
   eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
   busco:        {threads: 16, mem: 32G,   runtime: 12h}
-  omark:        {threads: 8,  mem: 16G,   runtime: 12h}  # LUCA.h5 约需 12 GB
+  omark:        {threads: 8,  mem: 32G,   runtime: 12h}  # LUCA.h5：全基因组约需 23 GB
 ```
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
@@ -122,6 +123,7 @@ resources:
 ```yaml
 executor: slurm
 jobs: 50                                   # 同时排队 / 运行的作业数上限，按集群规定调整
+cores: 256                                 # 必须设置：见下文
 default-resources:
   slurm_partition: "'compute'"             # 分区名；保留里面的单引号（见下文）
   slurm_account: "'my_project'"            # 集群要求记账账户时填写；否则删掉这一行
@@ -135,9 +137,13 @@ rerun-incomplete: true
 restart-times: 1
 ```
 
+**cores：** 在集群上 `cores` 只用于限制单个作业的线程数。不设置时 Snakemake 取主进程可用的 CPU 数——第 7 节的主作业
+（`-c 2`）就是 2——每一步都会被压到 2 个线程（服务器上实际遇到过：EDTA 本应 10 线程，以 2 线程跑了 28 小时）。请设为不小于
+`config.yaml` 中最大的 `threads`；小于时流程会在启动时停止。dry-run 看不出这个问题。
+
 **引号：** Snakemake 把 `default-resources` 的每个值当作 Python 表达式求值。分区名、账户名这类文本值要在双引号里
 再加单引号（`"'compute'"`）：否则恰好是 Python 内置名称的值（`all`、`max`、`input` 等）会变成 Python 对象，所有作业在
-启动时失败（例如 `TypeError: all() takes no keyword arguments`）。dry-run（`-n`）检查不出这个问题。
+启动时失败（例如 `TypeError: all() takes no keyword arguments`）。流程启动时（包括 dry-run）会检查这些值，写错时直接停止并提示。
 
 各步骤作业申请的资源来自 `config.yaml` 的 `resources`：`threads` → `--cpus-per-task`，`mem` → `--mem`，`runtime` → `--time`。
 命令行中的 `-s` 会覆盖 profile 里相对路径的 `snakefile`，所以分析目录中的 profile 不需要改 `snakefile`。

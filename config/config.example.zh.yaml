@@ -125,6 +125,7 @@ gemoma:
   # miniprot 同样按物种分别比对（04_Homology/miniprot/species/），合并后作为 EVM 的 PROTEIN 证据。
   # 各物种的 GeMoMa 可并行运行，每个占用一份 resources.gemoma；单机运行时请在 profile 中设置全局 mem_mb 上限。
   # GeMoMa 调用前缀；{mem_gb} 会替换为按 resources.gemoma.mem 计算的 JVM 内存
+  #   （RNA 证据提取 ERE 用 resources.gemoma_ere.mem，所需内存小得多）
   #   bioconda 包装脚本（已核实 gemoma 1.9：包装脚本会自动加上 CLI，不要再写 CLI）: "GeMoMa -Xmx{mem_gb}g"
   #   直接用 jar 包时需要写 CLI: "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
@@ -147,7 +148,8 @@ evm:
   segment_size: 500000           # < 1 Mb
   overlap_size: null             # null: 按 max_intron 推算 (至少 1-2 个基因长度)
   tune:                          # 权重调优：在一条序列上对权重做网格搜索，用最优组合跑全基因组 EVM
-    enabled: true
+    enabled: false               # 默认关闭：测试中（辣木全基因组，在 30 Mb 的染色体上比较 17 组）最优组合的 F 只比下面
+                                 #   的权重高 0.001–0.003，却多花约 11 CPU 小时。物种或证据组合比较特殊、或想检验权重时再打开
     region: auto                 # auto = 最长的序列；或填原始序列名，如 Chr1
     use_best: true               # false：只输出调优结果，全基因组仍用下面的 weights
     grid:                        # 每个来源的候选权重；transcripts 指实际使用的转录本证据（LR_ 或 SR_stringtie）
@@ -168,6 +170,8 @@ evm:
 refine:
   # 05_EVM/refine：按 CDS 内含子链比较 EVM 与 EviAnn 模型（规则 R1–R6，见 workflow/scripts/refine.py）
   min_cds_aa: 50                 # R2/R3/R4 采用的 EviAnn 模型须有完整 ORF 且不短于该长度；最终过滤也用
+  keep_short_supported: true     # 最终过滤：CDS 短于 min_cds_aa 但有 RNA 证据（无 RNA-seq 时为蛋白证据）的基因保留，
+                                 #   并标记 short_cds=yes；false = 一律删除
   # 最终过滤：基因 CDS 被 EDTA TE 覆盖的比例 > max_te_overlap 且没有 RNA 证据时才剔除
   #   RNA 证据（任一即可）：StringTie 转录本外显子重叠 / 来自 EviAnn 或与 EviAnn 一致 / BRAKER4 gene_support 有 RNA 支持
   #     （无 RNA-seq 时改用 miniprot / GeMoMa 的蛋白证据）
@@ -216,7 +220,7 @@ qc:
                                  #       <outdir>/00_Data/busco_downloads；null = 总是下载到后者
   reference_gff: null   # 可选：已有参考注释（原始序列名）；与各注释来源做 CDS 水平的一致性比较，写入报告
   # OMAmer 数据库（OMArk 用）：
-  #   LUCA.h5          9.9 GB，运行约需 12 GB 内存（resources.omark.mem 至少 14G）；推荐，可识别任意来源的污染
+  #   LUCA.h5          9.9 GB，运行约需 12–23 GB 内存（全基因组约 23 GB；resources.omark.mem 设 32G）；推荐，可识别任意来源的污染
   #   Viridiplantae.h5 1.5 GB，约需 2 GB 内存；内存不足 16 GB 时用于植物，完整性/一致性评估不受影响，
   #                    但只能识别植物来源的污染。两者由 scripts/download_databases.sh 下载（omamer / omamer_plants）
   omark_db: "db/LUCA.h5"
@@ -248,16 +252,17 @@ function:
 #   BRAKER4 的 config.ini（cpus_per_task / mem_of_node / max_runtime）。
 resources:
   default:      {threads: 8,  mem: 16G,   runtime: 12h}
-  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  edta:         {threads: 48, mem: 48G,   runtime: 7d}
   braker4:      {threads: 48, mem: 128G,  runtime: 3d}
-  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  eviann:       {threads: 32, mem: 96G,   runtime: 2d}
   gemoma:       {threads: 32, mem: 64G,   runtime: 2d}
-  evm:          {threads: 32, mem: 32G,   runtime: 1d}
-  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  gemoma_ere:   {threads: 1,  mem: 16G,   runtime: 12h}
+  evm:          {threads: 32, mem: 8G,    runtime: 1d}
+  repeatmasker: {threads: 32, mem: 8G,    runtime: 2d}
   refine:       {threads: 1,  mem: 16G,   runtime: 12h}
   interproscan: {threads: 16, mem: 32G,   runtime: 1d}
   eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
   busco:        {threads: 16, mem: 32G,   runtime: 12h}
-  omark:        {threads: 8,  mem: 16G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 32G,   runtime: 12h}
   merqury:      {threads: 16, mem: 64G,   runtime: 1d}
   fcs_gx:       {threads: 48, mem: 512G,  runtime: 1d}

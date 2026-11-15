@@ -16,7 +16,9 @@ A gene is removed for TE reasons only when BOTH hold:
 With --protein-evidence (annotation without RNA-seq), criterion 2 becomes "no RNA and no protein
 evidence": protein evidence = a CDS of the gene overlaps (same strand) a CDS of a miniprot alignment or
 a GeMoMa model. Without it every TE-overlapping gene would be removed, since there is no RNA evidence.
-Independently, genes whose longest CDS is shorter than --min-cds-aa are removed.
+Independently, genes whose longest CDS is shorter than --min-cds-aa are removed - unless --keep-short-supported
+and the gene has RNA evidence (as above; without RNA-seq: protein evidence): such genes are kept and marked
+short_cds=yes (a server run removed 1,547 RNA-supported genes with min_cds_aa 100).
 TEsorter protein hits are recorded in the decision table only; they never cause removal.
 
 Outputs: filtered GFF3, removed_genes.tsv (gene, reason) and filter_decisions.tsv (every gene).
@@ -223,6 +225,9 @@ def main():
     ap.add_argument("--braker4-support", default="", help="BRAKER4 gene_support.tsv (may be empty)")
     ap.add_argument("--tesorter", default="", help="TEsorter *.cls.tsv (recorded only)")
     ap.add_argument("--min-cds-aa", type=int, default=50)
+    ap.add_argument("--keep-short-supported", action="store_true",
+                    help="keep genes with a CDS below --min-cds-aa when they have RNA (or, without RNA-seq, protein) "
+                         "evidence; marked short_cds=yes")
     ap.add_argument("--protein-evidence", nargs="*", default=None,
                     help="CDS GFF3s (miniprot, GeMoMa): protein evidence also protects TE-overlapping genes "
                          "(used when there is no RNA-seq)")
@@ -249,7 +254,8 @@ def main():
     with open(a.out, "w") as out, open(a.removed, "w") as rm, open(a.decisions, "w") as dec:
         out.write("##gff-version 3\n")
         rm.write("gene\treason\n")
-        dec.write(f"# max_te_overlap={a.max_te_overlap} min_cds_aa={a.min_cds_aa}; {b4_note}"
+        dec.write(f"# max_te_overlap={a.max_te_overlap} min_cds_aa={a.min_cds_aa} "
+                  f"keep_short_supported={'yes' if a.keep_short_supported else 'no'}; {b4_note}"
                   + ("; no RNA-seq: protein evidence (miniprot / GeMoMa) also protects TE-overlapping genes"
                      if use_prot else "") + "\n")
         dec.write("\t".join(cols) + "\n")
@@ -262,6 +268,9 @@ def main():
             hit = next((tes[t] for t in g["tx"] if t in tes), "")
             if v["te_frac"] > a.max_te_overlap and not rna and not has_prot:
                 action, reason = "remove", (f"TE_overlap_{v['te_frac']:.2f}_no_RNA" + ("_no_protein" if use_prot else ""))
+            elif v["longest_cds_aa"] < a.min_cds_aa and a.keep_short_supported and (rna or has_prot):
+                action, reason = "keep", f"short_CDS_{v['longest_cds_aa']}aa_supported"
+                g["row"][8] = g["row"][8].rstrip(";") + ";short_cds=yes"
             elif v["longest_cds_aa"] < a.min_cds_aa:
                 action, reason = "remove", f"CDS_{v['longest_cds_aa']}aa_lt_{a.min_cds_aa}"
             else:

@@ -101,7 +101,8 @@ EviAnn 拿到的是每个样本各自的比对结果，每个样本一行（不�
 
 ## 关键规则
 
-**EVM 权重调优（`05_EVM/tune`，配置 `evm.tune`）**
+**EVM 权重调优（`05_EVM/tune`，配置 `evm.tune`，默认关闭）**
+- 默认关闭：测试中最优权重的 F 只比配置的权重高 0.001–0.003，却要多花约 11 CPU 小时；`evm.tune.enabled: true` 打开。
 - 在一条序列（默认最长者）上，对各证据来源的候选权重做网格搜索，默认 16 组加配置中的基线。
 - 用原始证据给每组结果打分：P 为多外显子模型的内含子链被长读 / 短读（与修正步骤同一标准）/ miniprot 任一完全支持的比例，R 为证据位点被覆盖的比例，F = 2PR/(P+R)。
 - 默认用 F 最高的权重跑全基因组 EVM。
@@ -123,7 +124,7 @@ EviAnn 拿到的是每个样本各自的比对结果，每个样本一行（不�
 **过滤（`05_EVM/final`）**
 - 基因 CDS 与 TE 重叠超过 `max_te_overlap`（默认 0.5），**并且**没有 RNA 证据，才会被剔除。
 - RNA 证据满足任一条即可：StringTie、来自 EviAnn、BRAKER4 gene_support。
-- CDS 短于 `min_cds_aa` 的模型单独剔除。
+- CDS 短于 `min_cds_aa` 的模型单独剔除；但有 RNA 证据（无 RNA-seq 时为蛋白证据）的保留，并标记 `short_cds=yes`（`refine.keep_short_supported`，默认开启）。
 - TEsorter 结果只记录，不作为删除条件。
 - 每个基因的判断写入 `filter_decisions.tsv`。
 

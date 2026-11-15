@@ -25,7 +25,7 @@ Disk advice:
 
 | Software | Purpose | Installation |
 |---|---|---|
-| Linux x86-64 | — | — |
+| Linux x86-64, **CPU with AVX2** (on every node that runs steps) | the bioconda StringTie build stops with "Illegal instruction" on older CPUs (e.g. AMD Opteron, Intel Xeon E5 v2); check with `grep -c avx2 /proc/cpuinfo` (0 = no AVX2); on a cluster exclude such nodes in the profile: `slurm_extra: "'--exclude=node[1-4]'"` | — |
 | conda / mamba (miniforge recommended) | all bioinformatics software | https://github.com/conda-forge/miniforge |
 | Apptainer (or Singularity 3.x) | all BRAKER4 tools run in containers | see below |
 | git, wget, curl | fetching code and databases | system package manager |
@@ -113,7 +113,7 @@ chips (with the UAS driver) time out repeatedly until the disk stops responding 
 |---|---|---|---|---|
 | `orthodb/Viridiplantae.fa.gz` | OrthoDB v12 plant proteins (BRAKER partition; for other clades use the matching partition, e.g. Metazoa, Fungi) | 3.1 GB | not decompressed | `orthodb_proteins` |
 | `orthodb/odb12v2_levels.tab.gz`, `odb12v2_level2species.tab.gz` | OrthoDB level tables: extract a protein subset by level (e.g. Brassicales) to reduce BRAKER4's disk use | 0.3 MB | — | `orthodb_subset.levels_tab`, `orthodb_subset.level2species_tab` |
-| `omamer/LUCA.h5` | OMAmer database (for OMArk), needs about 12 GB RAM | 9.9 GB | — | `qc.omark_db` |
+| `omamer/LUCA.h5` | OMAmer database (for OMArk), needs about 12–23 GB RAM (23 GB for a whole genome) | 9.9 GB | — | `qc.omark_db` |
 | `omamer/Viridiplantae.h5` | plant OMAmer database: replaces LUCA.h5 with < 16 GB RAM (about 2 GB RAM; detects plant contamination only) | 1.5 GB | — | `qc.omark_db` |
 | `busco_downloads/lineages/<lineage>` | BUSCO datasets (offline mode); also used by BRAKER4's compleasm | about 0.2 GB each | — | `qc.busco_download_path`, `qc.busco_lineages` |
 | `eukaryota_odb12`, `placement_files/`, `file_versions.tsv`, `*.done` in `busco_downloads/lineages/` | extra files needed by BRAKER4's compleasm (`compleasm` step; same layout as compleasm's own downloader) | about 0.2 GB | — | as above |
@@ -216,13 +216,16 @@ $SM --profile $A/profiles/local data_qc
 |---|---|
 | BRAKER4 reports `apptainer: command not found` or cannot create namespaces | Apptainer is not installed, or was installed from conda on Ubuntu 24.04 (blocked by AppArmor). Install it from the PPA as in section 2 |
 | GeMoMa prints its tool list and exits | `CLI` was added after the bioconda wrapper; `gemoma.cmd` should be `GeMoMa -Xmx{mem_gb}g` |
+| StringTie: `Illegal instruction` (exit 132), "CPU lacks AVX2" | The node's CPU has no AVX2, which the bioconda StringTie build needs. Exclude such nodes (`slurm_extra: "'--exclude=...'"` in the SLURM profile) |
+| Every step runs with only a few threads on a cluster / "--cores is 2 but steps request up to ..." | `cores` not set in the SLURM profile: Snakemake then uses the CPUs of the main job. Set `cores: 256` |
+| BRAKER4: `sort: cannot create temporary file in '<dir>'` | Older versions did not mount `$TMPDIR` into the containers; now it is mounted automatically. Otherwise add the directory to `braker4.bind` |
 | BUSCO cannot find a lineage | The lineage name does not exist (e.g. `eudicots_odb12`; the error lists similar names), or `busco_download_path` does not point to the directory containing `lineages/` |
 | `busco_dataset` fails with "cannot download" | The node running the main Snakemake process has no internet access: run `snakemake ... busco_datasets` once on a node that has, then start the workflow again |
-| OMArk killed by the system (OOM) | OMAmer loads the whole LUCA.h5 into memory; give `resources.omark.mem` at least 13G and make sure it does not run together with other large jobs |
+| OMArk killed by the system (OOM) | OMAmer loads the whole LUCA.h5 into memory; give `resources.omark.mem` 32G (a whole genome needed about 23 GB in a server test) and make sure it does not run together with other large jobs |
 | InterProScan reports a too old Java version | The system Java is 8; the workflow uses openjdk 11 from the `function` environment - check that the profile enables `software-deployment-method: [conda]` (both profiles do by default) and that PATH software is not used instead |
 | Building environments fails with `create: The following argument was not expected: --no-default-packages` | Snakemake 8.18.2 is incompatible with mamba 2.x; the profiles set `conda-frontend: conda` (conda uses the libmamba solver by default) |
 | BRAKER4 fills the system disk | BRAKER4 copies the protein database about 3 times (run directory, GeneMark-ETP arx/ and data/) and writes ProtHint temporary files: the full OrthoDB plant partition (5.4 GB) needs about 20 GB. With limited disk, use `orthodb_subset.levels` for related levels only (e.g. Brassicales + Malvales, about 2.06 M proteins) |
-| OMArk (omamer search) OOM-killed (`Killed` / `Out of memory: Killed process ... (omamer)`) | OMAmer reads the whole database into memory; LUCA.h5 needs about 12 GB. On small machines use `Viridiplantae.h5`, or set `resources.omark.mem` above 14G so that it does not run together with other jobs |
+| OMArk (omamer search) OOM-killed (`Killed` / `Out of memory: Killed process ... (omamer)`) | OMAmer reads the whole database into memory; LUCA.h5 needs about 12 GB for small protein sets and about 23 GB for a whole genome. On small machines use `Viridiplantae.h5`, or set `resources.omark.mem` to 32G so that it does not run together with other jobs |
 | AGAT reports `Cannot open agat_tmp_<file name>/result_*.stor` or `Failed to delete agat_tmp_<file name>` | AGAT creates a temporary folder named after the input file in the current directory; two jobs on the same file delete each other's temporary files. The workflow runs every AGAT job in its own temporary directory (`<script>.agat`) |
 | InterProScan reports `'sequence' is not an amino acid sequence [...]` | A protein has internal stop codons (written as `.` by gffread). The workflow writes internal stops as X in the functional annotation input and marks these transcripts `internal_stop=yes` in the final GFF3 (`05_EVM/final/internal_stops.tsv`) |
 | OMArk hangs at `Downloading taxdump.tar.gz from NCBI FTP site` on its first run, or fails on nodes without internet access | ete3 downloads the NCBI taxonomy on first use (about 80 MB download, 780 MB `~/.etetoolkit/taxa.sqlite`). Run `python -c "from ete3 import NCBITaxa; NCBITaxa()"` once in the omark environment on a node with internet access |

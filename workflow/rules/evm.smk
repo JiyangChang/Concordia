@@ -397,6 +397,7 @@ rule final_filter:
     params:
         script=script("05_EVM", "08_final_filter"),
         min_aa=RF.get("min_cds_aa", 50),
+        keep_short="--keep-short-supported" if RF.get("keep_short_supported", True) else "",
         max_te=RF.get("max_te_overlap", 0.5),
         # without RNA-seq, protein evidence (miniprot / GeMoMa) replaces RNA evidence for the TE criterion
         prot=lambda w, input: "" if HAS_RNA else f"--protein-evidence {input.miniprot} {input.gemoma}",
@@ -407,7 +408,7 @@ rule final_filter:
             --te-gff {input.te} --max-te-overlap {params.max_te} \\
             --transcripts "{input.transcripts}" --refine-decisions {input.decisions} {params.prot} \\
             --braker4-gff {input.braker4} --braker4-support {input.support} \\
-            --tesorter {input.tesorter} --min-cds-aa {params.min_aa} \\
+            --tesorter {input.tesorter} --min-cds-aa {params.min_aa} {params.keep_short} \\
             --out {output.gff} --removed {output.removed} --decisions {output.decisions}
         """)
 

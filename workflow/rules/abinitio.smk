@@ -123,9 +123,14 @@ rule braker4:
             [ -e "$d" ] || {{ echo "ERROR: braker4.bind: $d does not exist (Apptainer cannot mount it): list existing directories, or leave it empty" >&2; exit 1; }}
         done
         {params.busco_check}
+        # programs in the containers inherit TMPDIR (set by the cluster or by Snakemake's tmpdir resource on this
+        # node), so that directory must be mounted as well (seen on a server: sort failed in /scratch/tmp/<user>)
+        BIND="{params.bind}"
+        if [ -n "${{TMPDIR:-}}" ] && [ -d "$TMPDIR" ]; then BIND="$BIND,$(readlink -f "$TMPDIR")"; fi
+        echo "container mounts: $BIND"
         export BRAKER4_CONFIG={input.ini}
         {params.snakemake} --snakefile {params.snakefile} --cores {threads} {params.executor} \\
-                  --use-singularity --singularity-prefix {params.cache} --singularity-args "-B {params.bind}" \\
+                  --use-singularity --singularity-prefix {params.cache} --singularity-args "-B $BIND" \\
                   --latency-wait 120 --restart-times 2 --rerun-incomplete
         """, workdir="{params.workdir}", versions=f"{SNAKEMAKE} --version")
 

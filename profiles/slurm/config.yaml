@@ -5,6 +5,10 @@
 snakefile: workflow/Snakefile
 executor: slurm
 jobs: 100                         # maximum number of jobs queued / running at the same time
+cores: 256                        # caps the threads of each job only; must be >= the largest threads in config.yaml.
+                                  #   Without it Snakemake uses the CPUs of the main process (e.g. 2 for a main job
+                                  #   submitted with -c 2) and every step would run with 2 threads; the workflow
+                                  #   stops at start-up in that case
 printshellcmds: true
 rerun-incomplete: true
 latency-wait: 120                 # seconds to wait for output files (shared file systems may lag)
@@ -14,6 +18,7 @@ restart-times: 1
 default-resources:
   slurm_partition: "'all'"        # change to a partition of your cluster (keep both quotes)
   # slurm_account: "'my_account'" # set when the cluster requires an accounting account
+  # slurm_extra: "'--exclude=node[1-4]'"   # e.g. leave out nodes whose CPU lacks AVX2 (StringTie needs it)
   mem_mb: 8000                    # MB, an integer: here mem: "8G" would override the memory of every step and
                                   #   mem_mb: "8G" is not understood by the SLURM plugin (Snakemake 8.18 / plugin 2.6)
   runtime: "10h"                  # minutes, or a duration such as "10h", "2d"

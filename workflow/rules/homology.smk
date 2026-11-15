@@ -12,8 +12,8 @@ GEMOMA_ERE_DIR = O("04_Homology/GeMoMa/ERE")
 GEMOMA_STRANDED = P.strandness in ("FR", "RF")
 
 
-def gemoma_cmd():
-    mem_gb = max(4, res("gemoma")["mem_mb"] // 1000 - 2)
+def gemoma_cmd(res_class="gemoma"):
+    mem_gb = max(4, res(res_class)["mem_mb"] // 1000 - 2)
     # the bioconda GeMoMa wrapper already inserts "CLI" (verified with gemoma 1.9); passing CLI again
     # makes GeMoMa print its tool list and exit 0 without running
     return str(GM.get("cmd", "GeMoMa -Xmx{mem_gb}g")).replace("{mem_gb}", str(mem_gb))
@@ -52,10 +52,10 @@ rule gemoma_ere:
     params:
         script=script("04_Homology", "01_gemoma_ere"),
         workdir=GEMOMA_ERE_DIR,
-        cmd=gemoma_cmd(),
+        cmd=gemoma_cmd("gemoma_ere"),   # own resource class: ERE needs far less than GeMoMa
         strand=GEMOMA_STRAND[P.strandness],
     resources:
-        mem_mb=res("gemoma")["mem_mb"],
+        mem_mb=res("gemoma_ere")["mem_mb"],
     log:
         **logs("04_Homology", "01_gemoma_ere"),
     conda:

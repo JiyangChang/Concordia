@@ -106,16 +106,17 @@ function:
 # Set according to the nodes: a single job cannot exceed one node (48 cores / 192 GB); runtime e.g. 12h / 3d
 resources:
   default:      {threads: 4,  mem: 8G,    runtime: 12h}
-  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  edta:         {threads: 48, mem: 48G,   runtime: 7d}
   braker4:      {threads: 48, mem: 160G,  runtime: 3d}
-  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  eviann:       {threads: 32, mem: 96G,   runtime: 2d}
   gemoma:       {threads: 24, mem: 48G,   runtime: 2d}  # one job per homologous species, in parallel
-  evm:          {threads: 32, mem: 32G,   runtime: 1d}
-  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  gemoma_ere:   {threads: 1,  mem: 16G,   runtime: 12h}  # RNA evidence for GeMoMa, once
+  evm:          {threads: 32, mem: 8G,    runtime: 1d}
+  repeatmasker: {threads: 32, mem: 8G,    runtime: 2d}
   interproscan: {threads: 16, mem: 32G,   runtime: 1d}  # function.chunks jobs in parallel
   eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
   busco:        {threads: 16, mem: 32G,   runtime: 12h}
-  omark:        {threads: 8,  mem: 16G,   runtime: 12h}  # LUCA.h5 needs about 12 GB
+  omark:        {threads: 8,  mem: 32G,   runtime: 12h}  # LUCA.h5: about 23 GB for a whole genome
 ```
 
 ## 5. Profile `moringa/slurm_profile/config.yaml`
@@ -125,6 +126,7 @@ Copy `concordia/profiles/slurm/config.yaml` (Chinese comments: `config.zh.yaml`)
 ```yaml
 executor: slurm
 jobs: 50                                   # maximum jobs queued / running at the same time; follow cluster rules
+cores: 256                                 # needed: see below
 default-resources:
   slurm_partition: "'compute'"             # partition name; keep the inner single quotes (see below)
   slurm_account: "'my_project'"            # when the cluster requires an accounting account; otherwise delete
@@ -138,10 +140,16 @@ rerun-incomplete: true
 restart-times: 1
 ```
 
+**cores:** on a cluster, `cores` only caps the threads of each job. Without it Snakemake takes the CPUs of the
+main process - 2 for the main job of section 7 (`-c 2`) - and every step would run with 2 threads (seen on a server:
+EDTA ran with 2 instead of 10 threads for 28 hours). Set it at least as high as the largest `threads` in
+`config.yaml`; the workflow stops at start-up when it is lower. A dry-run does not show this.
+
 **Quoting:** Snakemake evaluates every `default-resources` value as a Python expression. Text values such as
 partition and account names therefore need single quotes inside the double quotes (`"'compute'"`): a bare name
 that happens to be a Python built-in (`all`, `max`, `input` ...) would otherwise become a Python object, and every
-job fails at start-up (e.g. `TypeError: all() takes no keyword arguments`). A dry-run (`-n`) does not catch this.
+job fails at start-up (e.g. `TypeError: all() takes no keyword arguments`). The workflow evaluates these values
+at start-up (also in a dry-run) and stops with a hint when one is wrong.
 
 The resources requested by each step come from `resources` in `config.yaml`: `threads` → `--cpus-per-task`,
 `mem` → `--mem`, `runtime` → `--time`. `-s` on the command line overrides the relative `snakefile` of the

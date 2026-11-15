@@ -23,7 +23,7 @@
 
 | 软件 | 用途 | 安装 |
 |---|---|---|
-| Linux x86-64 | — | — |
+| Linux x86-64，**CPU 支持 AVX2**（所有运行步骤的节点） | bioconda 的 StringTie 构建在较老的 CPU（如 AMD Opteron、Intel Xeon E5 v2）上会以“Illegal instruction”退出；用 `grep -c avx2 /proc/cpuinfo` 检查（0 = 不支持）；集群上在 profile 中排除这类节点：`slurm_extra: "'--exclude=node[1-4]'"` | — |
 | conda / mamba（推荐 miniforge） | 所有生物信息软件 | https://github.com/conda-forge/miniforge |
 | Apptainer（或 Singularity 3.x） | BRAKER4 的全部工具都在容器中运行 | 见下 |
 | git、wget、curl | 获取代码和数据库 | 系统包管理器 |
@@ -103,7 +103,7 @@ bash scripts/download_databases.sh /path/to/databases   # 可重复运行，断�
 |---|---|---|---|---|
 | `orthodb/Viridiplantae.fa.gz` | OrthoDB v12 植物蛋白（BRAKER 分区；其它类群换成相应分区，如 Metazoa、Fungi） | 3.1 GB | 不解压 | `orthodb_proteins` |
 | `orthodb/odb12v2_levels.tab.gz`、`odb12v2_level2species.tab.gz` | OrthoDB 分类阶元表：按阶元（如 Brassicales）抽取蛋白子集，减少 BRAKER4 的磁盘占用 | 0.3 MB | — | `orthodb_subset.levels_tab`、`orthodb_subset.level2species_tab` |
-| `omamer/LUCA.h5` | OMAmer 数据库（OMArk 用），运行约需 12 GB 内存 | 9.9 GB | — | `qc.omark_db` |
+| `omamer/LUCA.h5` | OMAmer 数据库（OMArk 用），运行约需 12–23 GB 内存（全基因组约 23 GB） | 9.9 GB | — | `qc.omark_db` |
 | `omamer/Viridiplantae.h5` | 植物 OMAmer 数据库：内存不足 16 GB 时代替 LUCA.h5（约需 2 GB 内存；只能识别植物来源的污染） | 1.5 GB | — | `qc.omark_db` |
 | `busco_downloads/lineages/<lineage>` | BUSCO 数据集（离线模式）；BRAKER4 的 compleasm 也使用这个目录 | 每个约 0.2 GB | — | `qc.busco_download_path`、`qc.busco_lineages` |
 | `busco_downloads/lineages/` 中的 `eukaryota_odb12`、`placement_files/`、`file_versions.tsv`、`*.done` | BRAKER4 的 compleasm 额外需要的文件（`compleasm` 步骤下载；目录结构与 compleasm 自己下载的一致） | 约 0.2 GB | — | 同上 |
@@ -194,13 +194,16 @@ $SM --profile $A/profiles/local data_qc
 |---|---|
 | BRAKER4 报 `apptainer: command not found` 或无法创建命名空间 | 没有安装 Apptainer，或者在 Ubuntu 24.04 上从 conda 安装（受 AppArmor 限制）。按第 2 节用 PPA 安装 |
 | GeMoMa 只打印工具列表就退出 | 在 bioconda 包装脚本后面又写了 `CLI`；`gemoma.cmd` 应为 `GeMoMa -Xmx{mem_gb}g` |
+| StringTie 报 `Illegal instruction`（退出码 132）、“CPU lacks AVX2” | 节点 CPU 不支持 AVX2，而 bioconda 的 StringTie 构建需要它。在 SLURM profile 中排除这些节点（`slurm_extra: "'--exclude=...'"`） |
+| 集群上每一步都只用很少的线程 / “--cores is 2 but steps request up to ...” | SLURM profile 没有设置 `cores`，Snakemake 改用主作业的 CPU 数。设置 `cores: 256` |
+| BRAKER4 报 `sort: cannot create temporary file in '<目录>'` | 旧版本没有把 `$TMPDIR` 挂载进容器；现在会自动挂载。否则把该目录加入 `braker4.bind` |
 | BUSCO 报找不到 lineage | lineage 名称不存在（例如 `eudicots_odb12`；报错会列出相近的名称），或者 `busco_download_path` 没有指向包含 `lineages/` 的目录 |
 | `busco_dataset` 报 "cannot download" | 运行 Snakemake 主进程的节点不能联网：先在能联网的节点上运行一次 `snakemake ... busco_datasets`，再重新启动流程 |
-| OMArk 被系统 OOM 终止 | OMAmer 会把整个 LUCA.h5 读进内存；`resources.omark.mem` 至少 13G，并保证它不和其它大任务同时运行 |
+| OMArk 被系统 OOM 终止 | OMAmer 会把整个 LUCA.h5 读进内存；`resources.omark.mem` 设为 32G（服务器测试中全基因组约需 23 GB），并保证它不和其它大任务同时运行 |
 | InterProScan 报 Java 版本过低 | 系统 Java 是 8；流程使用 `function` 环境里的 openjdk 11，请确认 profile 中启用了 `software-deployment-method: [conda]`（两个 profile 默认已启用），没有改用 PATH 中的软件 |
 | 建环境时报 `create: The following argument was not expected: --no-default-packages` | Snakemake 8.18.2 与 mamba 2.x 不兼容；profile 中已设置 `conda-frontend: conda`（conda 默认使用 libmamba 求解器） |
 | BRAKER4 运行中把系统盘写满 | BRAKER4 会把蛋白库复制约 3 份（运行目录、GeneMark-ETP 的 arx/ 和 data/）并生成 ProtHint 临时文件：OrthoDB 植物全库（5.4 GB）约需 20 GB。磁盘有限时用 `orthodb_subset.levels` 只取近缘阶元（例如 Brassicales + Malvales 约 206 万条） |
-| OMArk（omamer search）被 OOM 杀掉（`已杀死` / `Out of memory: Killed process ... (omamer)`） | OMAmer 把整个数据库读入内存，LUCA.h5 约需 12 GB。内存小的机器改用 `Viridiplantae.h5`，或把 `resources.omark.mem` 设到 14G 以上，使它不与其它任务同时运行 |
+| OMArk（omamer search）被 OOM 杀掉（`已杀死` / `Out of memory: Killed process ... (omamer)`） | OMAmer 把整个数据库读入内存，LUCA.h5 对较小的蛋白集约需 12 GB，全基因组约需 23 GB。内存小的机器改用 `Viridiplantae.h5`，或把 `resources.omark.mem` 设为 32G，使它不与其它任务同时运行 |
 | AGAT 报 `Cannot open agat_tmp_<文件名>/result_*.stor` 或 `Failed to delete agat_tmp_<文件名>` | AGAT 在当前目录下按输入文件名建临时文件夹，两个任务同时处理同一个文件时互相删除对方的临时文件。流程中每个 AGAT 任务都在自己的临时目录（`<脚本>.agat`）中运行 |
 | InterProScan 报 `'sequence' is not an amino acid sequence [...]` | 蛋白中有内部终止密码子（gffread 写成 `.`）。流程把功能注释输入中的内部终止写为 X，并在最终 GFF3 中把这类转录本标记为 `internal_stop=yes`（`05_EVM/final/internal_stops.tsv`） |
 | OMArk 第一次运行时卡在 `Downloading taxdump.tar.gz from NCBI FTP site`，或在不能联网的节点上失败 | ete3 第一次使用时下载 NCBI 分类库（约 80 MB 下载、780 MB 的 `~/.etetoolkit/taxa.sqlite`）。先在能联网的节点上、omark 环境中运行一次 `python -c "from ete3 import NCBITaxa; NCBITaxa()"` |

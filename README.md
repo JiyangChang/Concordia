@@ -111,7 +111,9 @@ The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 
 ## Key rules
 
-**EVM weight tuning (`05_EVM/tune`, configuration `evm.tune`)**
+**EVM weight tuning (`05_EVM/tune`, configuration `evm.tune`, off by default)**
+- Off by default: in tests the best weights scored only 0.001-0.003 F above the configured ones, for about 11
+  CPU hours; enable with `evm.tune.enabled: true`.
 - Grid search over candidate weights of the evidence sources on one sequence (the longest by default): 16
   combinations by default plus the configured baseline.
 - Each result is scored with the raw evidence: P = fraction of multi-exon models whose intron chain is fully
@@ -147,7 +149,8 @@ The logic is in `workflow/lib/common.py`, tested in `tests/test_common.py`.
 - A gene is removed only if its CDS overlaps TEs by more than `max_te_overlap` (default 0.5) **and** it has no RNA
   evidence.
 - RNA evidence, any of: StringTie, from EviAnn, BRAKER4 gene_support.
-- Models with a CDS shorter than `min_cds_aa` are removed separately.
+- Models with a CDS shorter than `min_cds_aa` are removed separately, except those with RNA evidence (without
+  RNA-seq: protein evidence), which are kept and marked `short_cds=yes` (`refine.keep_short_supported`, on by default).
 - TEsorter hits are only recorded, never a removal criterion.
 - The decision for every gene is written to `filter_decisions.tsv`.
 

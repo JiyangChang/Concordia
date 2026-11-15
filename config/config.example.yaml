@@ -142,6 +142,7 @@ gemoma:
   # The species can run in parallel, each with one resources.gemoma; on a single machine set a global
   # mem_mb limit in the profile.
   # GeMoMa command prefix; {mem_gb} is replaced by the JVM memory derived from resources.gemoma.mem
+  #   (resources.gemoma_ere.mem for the RNA evidence extraction ERE, which needs much less)
   #   bioconda wrapper (verified for gemoma 1.9: the wrapper adds CLI itself, do not add it): "GeMoMa -Xmx{mem_gb}g"
   #   jar file directly (CLI needed): "java -Xmx{mem_gb}g -jar /path/GeMoMa-1.9.jar CLI"
   cmd: "GeMoMa -Xmx{mem_gb}g"
@@ -165,7 +166,9 @@ evm:
   segment_size: 500000           # < 1 Mb
   overlap_size: null             # null: derived from max_intron (at least 1-2 gene lengths)
   tune:                          # weight tuning: grid search on one sequence; the best weights are used genome-wide
-    enabled: true
+    enabled: false               # off by default: in tests (Moringa whole genome, 17 sets on a 30 Mb chromosome) the
+                                 #   best set scored only 0.001-0.003 F above the weights below, for ~11 CPU hours.
+                                 #   Worth trying for an unusual species / evidence mix, or to check the weights
     region: auto                 # auto = longest sequence; or an original sequence name, e.g. Chr1
     use_best: true               # false: only report the tuning results; the genome-wide run uses the weights below
     grid:                        # candidate weights per source; transcripts = the transcript evidence actually
@@ -190,6 +193,8 @@ refine:
   # 05_EVM/refine: EVM vs EviAnn models compared by CDS intron chain (rules R1-R6, see workflow/scripts/refine.py)
   min_cds_aa: 50                 # EviAnn models used by R2/R3/R4 need a complete ORF of at least this length;
                                  #   also used by the final filter
+  keep_short_supported: true     # final filter: genes with a CDS below min_cds_aa are kept when they have RNA evidence
+                                 #   (without RNA-seq: protein evidence) and marked short_cds=yes; false = always removed
   # Final filter: a gene is removed only if > max_te_overlap of its CDS is covered by EDTA TEs AND it has no RNA evidence
   #   RNA evidence (any): exon overlap with a StringTie transcript / from or identical to EviAnn /
   #     RNA support in BRAKER4 gene_support (without RNA-seq: protein evidence from miniprot / GeMoMa instead)
@@ -245,7 +250,7 @@ qc:
   reference_gff: null   # optional: existing reference annotation (original sequence names); CDS-level agreement
                         #   with every annotation source, shown in the report
   # OMAmer database (for OMArk):
-  #   LUCA.h5          9.9 GB, needs about 12 GB RAM (resources.omark.mem at least 14G); recommended,
+  #   LUCA.h5          9.9 GB, needs about 12-23 GB RAM (23 GB for a whole genome; resources.omark.mem 32G); recommended,
   #                    detects contamination from any lineage
   #   Viridiplantae.h5 1.5 GB, needs about 2 GB RAM; for plants on machines with < 16 GB RAM: completeness /
   #                    consistency unaffected, but only plant contamination is detected.
@@ -280,16 +285,17 @@ function:
 #   mem - 4 GB, BRAKER4 config.ini (cpus_per_task / mem_of_node / max_runtime).
 resources:
   default:      {threads: 8,  mem: 16G,   runtime: 12h}
-  edta:         {threads: 48, mem: 128G,  runtime: 7d}
+  edta:         {threads: 48, mem: 48G,   runtime: 7d}
   braker4:      {threads: 48, mem: 128G,  runtime: 3d}
-  eviann:       {threads: 32, mem: 64G,   runtime: 2d}
+  eviann:       {threads: 32, mem: 96G,   runtime: 2d}
   gemoma:       {threads: 32, mem: 64G,   runtime: 2d}
-  evm:          {threads: 32, mem: 32G,   runtime: 1d}
-  repeatmasker: {threads: 32, mem: 32G,   runtime: 2d}
+  gemoma_ere:   {threads: 1,  mem: 16G,   runtime: 12h}
+  evm:          {threads: 32, mem: 8G,    runtime: 1d}
+  repeatmasker: {threads: 32, mem: 8G,    runtime: 2d}
   refine:       {threads: 1,  mem: 16G,   runtime: 12h}
   interproscan: {threads: 16, mem: 32G,   runtime: 1d}
   eggnog:       {threads: 32, mem: 64G,   runtime: 1d}
   busco:        {threads: 16, mem: 32G,   runtime: 12h}
-  omark:        {threads: 8,  mem: 16G,   runtime: 12h}
+  omark:        {threads: 8,  mem: 32G,   runtime: 12h}
   merqury:      {threads: 16, mem: 64G,   runtime: 1d}
   fcs_gx:       {threads: 48, mem: 512G,  runtime: 1d}

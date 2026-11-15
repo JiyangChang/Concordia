@@ -37,7 +37,7 @@ def run(tmp_path, genes, te=(), stringtie=(), decisions=(), braker=(), support=N
             "--refine-decisions", p("dec.tsv"), "--braker4-gff", p("b4.gff3"), "--braker4-support", p("b4.tsv"),
             "--tesorter", p("tes.tsv"), "--out", p("out.gff3"), "--removed", p("rm.tsv"), "--decisions", p("d.tsv")]
     for k, v in kw.items():
-        args += ["--" + k.replace("_", "-"), str(v)]
+        args += ["--" + k.replace("_", "-")] + ([] if v is True else [str(v)])     # True = flag without value
     r = subprocess.run(args, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     with open(p("d.tsv")) as fh:
@@ -151,3 +151,16 @@ def test_protein_evidence_rescues_without_rna(tmp_path):
     assert d["g2"]["action"] == "remove" and d["g2"]["reason"] == "TE_overlap_0.80_no_RNA_no_protein"
     d, _ = run(tmp_path, [TE_GENE], te=TE_80)                        # without the option: unchanged
     assert d["g1"]["action"] == "remove" and "protein" not in d["g1"]
+
+
+def test_short_genes_kept_with_evidence(tmp_path):
+    short_rna = gene("s1", 1001, 1150)                 # 150 bp CDS = 50 aa
+    short_none = gene("s2", 5001, 5150)
+    genes, st = [short_rna, short_none], [(1001, 1150, "+")]
+    d, _ = run(tmp_path, genes, stringtie=st, min_cds_aa=100)
+    assert d["s1"]["action"] == "remove" and d["s2"]["action"] == "remove"          # default: length only
+    d, _ = run(tmp_path, genes, stringtie=st, min_cds_aa=100, keep_short_supported=True)
+    assert d["s1"]["action"] == "keep" and d["s1"]["reason"] == "short_CDS_50aa_supported"
+    assert d["s2"]["action"] == "remove" and d["s2"]["reason"] == "CDS_50aa_lt_100"   # no RNA evidence
+    out = open(tmp_path / "out.gff3").read()
+    assert "ID=s1;short_cds=yes" in out and "s2" not in out

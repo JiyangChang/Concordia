@@ -678,6 +678,9 @@ def _gb(mb):
     return "-" if mb is None else f"{mb / 1024:.1f}"
 
 
+CONTAINER_RULES = {"braker4"}     # tools run in Apptainer containers: the benchmark misses their CPU / memory
+
+
 def resources_html(outdir, requests_tsv, figdir):
     """Runtime and resources of every job (Snakemake benchmark files <step>/logs/benchmarks/*.tsv) against the
     requested threads / memory / runtime (07_Report/resource_requests.tsv), per rule with suggestions."""
@@ -730,6 +733,11 @@ def resources_html(outdir, requests_tsv, figdir):
                           f"uses about {cores:.1f} cores on average: fewer threads would do"))
         if rt and wmax > 0.8 * rt * 60:
             tips.append(L("运行时间接近申请值，建议增大 runtime", "run time close to the request: raise runtime"))
+        if rule in CONTAINER_RULES:                 # CPU / memory of the container processes are not measured
+            tips = [t for t in tips if "runtime" in t] + [
+                L("容器内的进程未计入 CPU 和内存（实测 BRAKER4 峰值可达 100 GB 级），请以 SLURM 的 sacct 为准",
+                  "CPU and memory of the processes in the containers are not counted (BRAKER4 peaks were ~100 GB in a "
+                  "server test): use SLURM's sacct instead")]
         sugg_n += bool(tips)
         rows.append([rule, len(js), _hms(wmax), _hms(sum(j["wall"] or 0 for j in js)),
                      "-" if thr is None else int(thr), "-" if cores is None else f"{cores:.1f}",
@@ -1349,15 +1357,21 @@ def build(a, out):
                     [L("　EviAnn 支持", "  EviAnn support"), by["rna_eviann"]],
                     [L("　BRAKER4 gene_support 支持", "  BRAKER4 gene_support support"), by["rna_braker4"]],
                     [L("有 TEsorter 命中（仅记录）", "TEsorter hits (recorded only)"),
-                     sum(x[ix["tesorter"]] != "-" for x in body)]]
+                     sum(x[ix["tesorter"]] != "-" for x in body)],
+                    [L("CDS 短于下限但有证据而保留（short_cds=yes）", "CDS below the minimum but kept for evidence "
+                                                                  "(short_cds=yes)"),
+                     sum(x[ix["reason"]].startswith("short_CDS") for x in body)]]
             fparts.append("<h3>" + L("TE 过滤明细", "TE filter details") + "</h3>" +
                           "".join(f"<p class='muted'>{html.escape(n_)}</p>" for n_ in notes) +
                           table([L("项目", "Item"), L("数目", "Count")], summ))
     S.append(("filter", L("05_EVM 过滤", "05_EVM Filtering"),
-              "<p>" + L("基因 CDS 与 TE 重叠超过阈值且没有 RNA 证据时才剔除；CDS 过短的模型单独剔除；TEsorter 只记录。",
+              "<p>" + L("基因 CDS 与 TE 重叠超过阈值且没有 RNA 证据时才剔除；CDS 短于 refine.min_cds_aa 的模型单独剔除，"
+                        "但有 RNA 证据（无 RNA-seq 时为蛋白证据）的保留并标记 short_cds=yes（refine.keep_short_supported）；"
+                        "TEsorter 只记录。",
                         "A gene is removed only when its CDS overlap with TEs exceeds the threshold and it has no RNA "
-                        "evidence; models with too short a CDS are removed separately; TEsorter hits are only "
-                        "recorded.") + "</p>" + "".join(fparts)))
+                        "evidence; models with a CDS below refine.min_cds_aa are removed separately, except those with RNA "
+                        "evidence (without RNA-seq: protein evidence), which are kept and marked short_cds=yes "
+                        "(refine.keep_short_supported); TEsorter hits are only recorded.") + "</p>" + "".join(fparts)))
 
     # final gene set
     ch, cr = read_tsv(O("05_EVM/stats/all_sets_stats.tsv"))

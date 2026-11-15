@@ -360,7 +360,9 @@ def test_runtime_and_resources(tmp_path):
     req = f"{out}/07_Report/resource_requests.tsv"
     w(req, "rule\tthreads\tmem_mb\truntime_min\tbenchmark\n"
            "edta\t48\t32768\t120\t01_Repeat/logs/benchmarks/01_edta.tsv\n"
-           "hisat2_align\t16\t32000\t\t02_RNA/logs/benchmarks/02_hisat2.{sample,[^/]+}.tsv\n")
+           "hisat2_align\t16\t32000\t\t02_RNA/logs/benchmarks/02_hisat2.{sample,[^/]+}.tsv\n"
+           "braker4\t48\t131072\t4320\t03_Ab_initio/logs/benchmarks/02_braker4.tsv\n")
+    w(f"{out}/03_Ab_initio/logs/benchmarks/02_braker4.tsv", bm + "7000\t1:56:40\t3700\t1\t1\t1\t0\t0\t10\t9000\n")
     en, zh = str(tmp_path / "en.html"), str(tmp_path / "zh.html")
     r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
                         "--braker4-mode", "dual", "--eviann-tag", "x", "--config", f"{out}/cfg.yaml",
@@ -368,7 +370,9 @@ def test_runtime_and_resources(tmp_path):
     assert r.returncode == 0, r.stderr
     h = open(en).read()
     sec = h[h.index("<section id='resources'>"):]
-    assert "3 jobs" in sec and "runtime_top" in sec
+    assert "4 jobs" in sec and "runtime_top" in sec
+    b4 = re.findall(r"<tr><td>braker4</td>.*?</tr>", sec)[0]               # container: no memory / thread advice
+    assert "sacct instead" in b4 and "fewer threads" not in b4 and "is enough" not in b4
     # edta: 4 cores of 48 used, 29.3 GB of 32 GB (> 90%), 2 h of 2 h requested
     assert "<td>edta</td><td>1</td><td>2:00:00</td>" in sec and "<td>48</td><td>4.0</td><td>8</td>" in sec
     assert "memory near or above the request: use ≥ 39G" in sec and "fewer threads" in sec and "raise runtime" in sec

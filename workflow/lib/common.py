@@ -446,7 +446,7 @@ class Project:
     @property
     def evm_tune(self):
         t = self.evm_cfg.get("tune", {}) or {}
-        return {"enabled": bool(t.get("enabled", True)), "region": str(t.get("region", "auto") or "auto"),
+        return {"enabled": bool(t.get("enabled", False)), "region": str(t.get("region", "auto") or "auto"),
                 "use_best": bool(t.get("use_best", True)), "grid": t.get("grid") or self.TUNE_DEFAULT_GRID}
 
     def evm_grid(self):
