@@ -12,3 +12,6 @@ GeMoMa_temp/
 
 # local development notes, design reports and repository backups (not public)
 dev/
+
+# analysis results copied into the code directory (never part of the repository)
+/0[0-7]_*/

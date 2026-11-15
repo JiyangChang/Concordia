@@ -380,3 +380,11 @@ def test_runtime_and_resources(tmp_path):
     assert "<td>hisat2_align</td><td>2</td><td>0:15:00</td><td>0:25:00</td>" in sec
     assert "about 6G is enough" in sec
     assert "运行时间与资源" in open(zh).read()
+
+
+def test_source_comparison_after_final_result(tmp_path):
+    zh, en = render_both(tmp_path)
+    for h in (zh, en):
+        ids = re.findall(r"<section id='([^']+)'>", h)
+        assert ids.index("finalset") + 1 == ids.index("qc") < ids.index("function")
+    assert "<b>refine</b>" in en and "only by the genes removed by the filter" in en

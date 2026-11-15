@@ -1021,7 +1021,7 @@ def build(a, out):
             bottom = [b + y for b, y in zip(bottom, ys)]
         ax.set_xlabel("Kimura substitution level (%)")
         ax.set_ylabel("% of genome")
-        ax.legend(fontsize=8, ncol=4, frameon=False)
+        legend_below(ax, ncol=4)                       # outside the axes: the bars fill the plot area
         rparts.append("<h3>" + L("重复序列景观（Kimura 距离）", "Repeat landscape (Kimura distance)") +
                       "</h3><p class='muted'>" + L("距离越小，插入越年轻。", "The smaller the distance, the younger "
                                                                          "the insertion.") + "</p>" +
@@ -1227,8 +1227,24 @@ def build(a, out):
     ch, cr = read_tsv(O("05_EVM/stats/all_sets_stats.tsv"))
     S.append(("qc", L("各注释来源对比（BUSCO / OMArk / 基因结构）", "Comparison of annotation sources (BUSCO / OMArk / "
                                                                "gene structure)"),
-              "<p>" + L("所有来源使用同一组用户指定的 BUSCO lineage。", "All sources use the same user-specified BUSCO "
-                                                                   "lineages.") + "</p>" +
+              "<p>" + L("所有来源使用同一组用户指定的 BUSCO lineage，BUSCO / OMArk 都用每个基因最长的蛋白。各行：",
+                        "All sources use the same user-specified BUSCO lineages; BUSCO / OMArk use the longest protein "
+                        "of every gene. Rows:") + "</p><ul>" +
+              L("<li><b>EviAnn / BRAKER4 / GeMoMa_*</b>：三路预测（RNA 注释、从头预测、同源投射），即 EVM 的输入；"
+                "GeMoMa_&lt;物种&gt; 为单个同源物种，GeMoMa_merged 为合并结果</li>"
+                "<li><b>EVM</b>：EVM 整合的共识模型（没有 UTR，每个基因一个转录本）</li>"
+                "<li><b>refine</b>：与 EviAnn 比较修正之后（引入 UTR 和异构体，补入、替换基因），过滤之前，含全部异构体</li>"
+                "<li><b>final</b>：TE / 长度过滤和重新命名之后的最终结果；主结果每个基因一个转录本。"
+                "与 refine 在 BUSCO / OMArk 上的差别只来自过滤删掉的基因</li>",
+                "<li><b>EviAnn / BRAKER4 / GeMoMa_*</b>: the three prediction routes (RNA-based, ab initio, homology "
+                "projection), the inputs of EVM; GeMoMa_&lt;species&gt; = one homologous species, GeMoMa_merged = "
+                "combined</li>"
+                "<li><b>EVM</b>: EVM consensus models (no UTRs, one transcript per gene)</li>"
+                "<li><b>refine</b>: after the refinement against EviAnn (UTRs and isoforms added, genes added or "
+                "replaced), before filtering, with all isoforms</li>"
+                "<li><b>final</b>: the final result after the TE / length filter and renaming; the main result has one "
+                "transcript per gene. Its BUSCO / OMArk differ from refine only by the genes removed by the filter</li>") +
+              "</ul>" +
               busco_figure(h, r, figdir, "busco_comparison", (
                   L("各注释来源的蛋白集 BUSCO。", "Protein-set BUSCO of the annotation sources."),
                   L("每行一个注释来源 × 一个 BUSCO 数据集，输入为各来源每个基因的最长蛋白；"
@@ -1529,6 +1545,12 @@ def build(a, out):
               table([L("文件", "File"), L("版本信息（首行）", "Version (first line)")], vers) +
               "<h3>" + L("各步骤脚本", "Scripts of all steps") + "</h3>" + table([L("脚本", "Script")], scripts) +
               f"<h3>config</h3><pre>{cfg}</pre>"))
+
+    # the comparison covers EVM, refine and final: show it after the final result, before the functional annotation
+    keys = [k for k, _, _ in S]
+    if "qc" in keys and "finalset" in keys:
+        qc = S.pop(keys.index("qc"))
+        S.insert([k for k, _, _ in S].index("finalset") + 1, qc)
 
     res_html = resources_html(a.outdir, a.requests, figdir)
     if res_html:
