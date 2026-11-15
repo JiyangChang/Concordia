@@ -61,9 +61,10 @@ git submodule update --init
 # 注意：conda/mamba 必须在 PATH 中（Snakemake 用它建立各步骤的环境），否则会报
 #   "Command 'conda info --json' returned non-zero exit status 127"
 export PATH=$HOME/miniforge3/bin:$PATH        # 或 conda init 后重新登录
-# 运行流程本身用的环境（Snakemake 版本与 BRAKER4 要求一致）
+# 运行流程本身用的环境（Snakemake 版本与 BRAKER4 要求一致）。setuptools<81：Snakemake 的依赖 stopit 仍在导入
+# pkg_resources，setuptools 81 会对此发出警告，之后的版本将移除它
 mamba create -n concordia -c conda-forge -c bioconda \
-    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib
+    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 "setuptools<81" pandas pyyaml pytest matplotlib
 conda activate concordia
 
 # 各步骤的软件环境由 Snakemake 按 workflow/envs/*.yaml 自动建立（版本已锁定）。
@@ -194,6 +195,7 @@ $SM --profile $A/profiles/local data_qc
 |---|---|
 | BRAKER4 报 `apptainer: command not found` 或无法创建命名空间 | 没有安装 Apptainer，或者在 Ubuntu 24.04 上从 conda 安装（受 AppArmor 限制）。按第 2 节用 PPA 安装 |
 | GeMoMa 只打印工具列表就退出 | 在 bioconda 包装脚本后面又写了 `CLI`；`gemoma.cmd` 应为 `GeMoMa -Xmx{mem_gb}g` |
+| Snakemake 日志中有 `UserWarning: pkg_resources is deprecated ... pin to Setuptools<81`（来自 `stopit`） | 目前无害：Snakemake 的依赖 stopit 在导入 `pkg_resources`，setuptools 81 起弃用、之后的版本将移除它。在运行流程的环境中固定版本：`conda install -n concordia -c conda-forge "setuptools<81"` |
 | StringTie 报 `Illegal instruction`（退出码 132）、“CPU lacks AVX2” | 节点 CPU 不支持 AVX2，而 bioconda 的 StringTie 构建需要它。在 SLURM profile 中排除这些节点（`slurm_extra: "'--exclude=...'"`） |
 | 集群上每一步都只用很少的线程 / “--cores is 2 but steps request up to ...” | SLURM profile 没有设置 `cores`，Snakemake 改用主作业的 CPU 数。设置 `cores: 256` |
 | BRAKER4 报 `sort: cannot create temporary file in '<目录>'` | 旧版本没有把 `$TMPDIR` 挂载进容器；现在会自动挂载。否则把该目录加入 `braker4.bind` |

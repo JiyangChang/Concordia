@@ -51,7 +51,7 @@ curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Min
 bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
 source $HOME/miniforge3/etc/profile.d/conda.sh
 conda create -y -n concordia -c conda-forge -c bioconda \
-    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib graphviz
+    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 "setuptools<81" pandas pyyaml pytest matplotlib graphviz
 
 # 流程代码（连同 BRAKER4 子模块）
 git clone --recursive <仓库地址> concordia

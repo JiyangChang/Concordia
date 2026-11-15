@@ -65,9 +65,10 @@ After updating the workflow code the submodule version may change too; run `git 
 # Note: conda/mamba must be on PATH (Snakemake uses it to build the environment of each step), otherwise:
 #   "Command 'conda info --json' returned non-zero exit status 127"
 export PATH=$HOME/miniforge3/bin:$PATH        # or conda init and log in again
-# Environment that runs the workflow itself (Snakemake version as required by BRAKER4)
+# Environment that runs the workflow itself (Snakemake version as required by BRAKER4). setuptools<81: Snakemake's
+# dependency stopit still imports pkg_resources, which setuptools 81 warns about and later versions remove
 mamba create -n concordia -c conda-forge -c bioconda \
-    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 pandas pyyaml pytest matplotlib
+    python=3.12 snakemake=8.18.2 snakemake-executor-plugin-slurm=2.6.0 "setuptools<81" pandas pyyaml pytest matplotlib
 conda activate concordia
 
 # The software environment of each step is built by Snakemake from workflow/envs/*.yaml (pinned versions).
@@ -216,6 +217,7 @@ $SM --profile $A/profiles/local data_qc
 |---|---|
 | BRAKER4 reports `apptainer: command not found` or cannot create namespaces | Apptainer is not installed, or was installed from conda on Ubuntu 24.04 (blocked by AppArmor). Install it from the PPA as in section 2 |
 | GeMoMa prints its tool list and exits | `CLI` was added after the bioconda wrapper; `gemoma.cmd` should be `GeMoMa -Xmx{mem_gb}g` |
+| Snakemake log: `UserWarning: pkg_resources is deprecated ... pin to Setuptools<81` (from `stopit`) | Harmless for now: Snakemake's dependency stopit imports `pkg_resources`, which setuptools 81 deprecates and later versions remove. Pin it in the environment that runs the workflow: `conda install -n concordia -c conda-forge "setuptools<81"` |
 | StringTie: `Illegal instruction` (exit 132), "CPU lacks AVX2" | The node's CPU has no AVX2, which the bioconda StringTie build needs. Exclude such nodes (`slurm_extra: "'--exclude=...'"` in the SLURM profile) |
 | Every step runs with only a few threads on a cluster / "--cores is 2 but steps request up to ..." | `cores` not set in the SLURM profile: Snakemake then uses the CPUs of the main job. Set `cores: 256` |
 | BRAKER4: `sort: cannot create temporary file in '<dir>'` | Older versions did not mount `$TMPDIR` into the containers; now it is mounted automatically. Otherwise add the directory to `braker4.bind` |
