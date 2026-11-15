@@ -388,3 +388,24 @@ def test_source_comparison_after_final_result(tmp_path):
         ids = re.findall(r"<section id='([^']+)'>", h)
         assert ids.index("finalset") + 1 == ids.index("qc") < ids.index("function")
     assert "<b>refine</b>" in en and "only by the genes removed by the filter" in en
+
+
+def test_omark_figure(tmp_path):
+    out = str(tmp_path / "res")
+    build(out)
+    hdr = "source\tlineage\tC\tS\tD\tF\tM\tn\tomark_completeness\tomark_consistency\tgenes\tmrnas\n"
+    comp, cons = ("S:90.10%,D:2.00%[U:1.00%,E:1.00%],M:7.90%",
+                  "A:85.00%[P:5.00%,F:2.00%],I:3.00%[P:0.10%,F:0.20%],C:1.00%[P:0.00%,F:0.00%],U:11.00%")
+    w(f"{out}/05_EVM/qc/summary.tsv", hdr +
+      "".join(f"{s}\t{l}\t98\t97\t1\t1\t1\t100\t{comp}\t{cons}\t10\t12\n" for s in ("evm", "final") for l in ("a", "b")))
+    zh, en = str(tmp_path / "zh.html"), str(tmp_path / "en.html")
+    r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "make_report.py"), "--outdir", out, "--prefix", "AB",
+                        "--braker4-mode", "dual", "--eviann-tag", "x", "--config", f"{out}/cfg.yaml",
+                        "--out-zh", zh, "--out-en", en], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    h = open(en).read()
+    assert "alt='omark_comparison'" in h and "OMArk assessment of the annotation sources." in h
+    assert "各注释来源的 OMArk 评估。" in open(zh).read()
+    from make_report import _omark_parts
+    p = _omark_parts(cons)
+    assert p["A"] == 85.0 and p["A.P"] == 5.0 and p["A.F"] == 2.0 and p["I.F"] == 0.2 and p["U"] == 11.0

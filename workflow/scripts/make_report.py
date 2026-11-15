@@ -187,6 +187,62 @@ def busco_figure(header, rows, figdir, name="busco_comparison", caption=""):
           "is shown on the right.")))
 
 
+def _omark_parts(text):
+    """'A:88.07%[P:5.77%,F:1.44%],I:4.06%[...],...' -> {'A': 88.07, 'A.P': 5.77, 'A.F': 1.44, 'I': 4.06, ...}"""
+    out = {}
+    for m in re.finditer(r"([A-Z]):([\d.]+)%(?:\[([^\]]*)\])?", text or ""):
+        out[m.group(1)] = float(m.group(2))
+        for k, v in re.findall(r"([A-Z]):([\d.]+)%", m.group(3) or ""):
+            out[f"{m.group(1)}.{k}"] = float(v)
+    return out
+
+
+def omark_figure(header, rows, figdir, name="omark_comparison"):
+    """OMArk of every annotation source: completeness (S / D / M of the conserved HOGs) and consistency (A split into
+    full-length / partial / fragment, I, C, U of all proteins), as stacked bars like the BUSCO figure."""
+    if plt is None or not header or "omark_completeness" not in header:
+        return ""
+    ic, ik = header.index("omark_completeness"), header.index("omark_consistency")
+    seen, data = set(), []
+    for r in rows:                                  # one row per source (summary.tsv repeats it per lineage)
+        if r[0] in seen or not r[ic].strip():
+            continue
+        seen.add(r[0])
+        data.append((src_label(r[0]), _omark_parts(r[ic]), _omark_parts(r[ik])))
+    if not data:
+        return ""
+    comp = [("S", "Single", "#2f6fb0"), ("D", "Duplicated", "#7fb0e6"), ("M", "Missing", "#c8553d")]
+    cons = [("A_full", "Consistent", "#5a9e6f"), ("A.P", "Consistent partial", "#8cc49c"),
+            ("A.F", "Consistent fragment", "#c4e3cc"), ("I", "Inconsistent", "#e0a43a"),
+            ("C", "Contaminant", "#8c6bb1"), ("U", "Unknown", "#999999")]
+    for _, _, c in data:
+        c["A_full"] = max(0.0, c.get("A", 0) - c.get("A.P", 0) - c.get("A.F", 0))
+    labels = [d[0] for d in data]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 0.45 * len(data) + 1.6), sharey=True)
+    for ax, parts, idx, title in ((axes[0], comp, 1, "Completeness (conserved HOGs)"),
+                                  (axes[1], cons, 2, "Consistency (all proteins)")):
+        left = [0.0] * len(data)
+        for key, lab, col in parts:
+            vals = [d[idx].get(key, 0.0) for d in data]
+            ax.barh(labels, vals, left=left, color=col, label=lab)
+            left = [l + v for l, v in zip(left, vals)]
+        ax.set_xlim(0, 100); ax.set_xlabel("%"); ax.set_title(title, fontsize=10)
+        legend_below(ax, ncol=3 if len(parts) > 3 else len(parts))
+    axes[0].invert_yaxis()
+    for i, d in enumerate(data):                    # values at the bar end of the main categories
+        axes[0].text(101, i, f"S+D {d[1].get('S', 0) + d[1].get('D', 0):.1f}%", va="center", fontsize=8)
+    axes[0].set_xlim(0, 118)
+    return fig_to_img(fig, figdir, name, (
+        L("各注释来源的 OMArk 评估。", "OMArk assessment of the annotation sources."),
+        L("左：完整度，即该谱系保守的 HOG（直系同源组）中被找到的比例，分单拷贝（S）、多拷贝（D）、缺失（M）；"
+          "右：一致性，即全部蛋白中与该物种所在谱系一致（A，又分全长、部分 partial、片段 fragment）、谱系不一致（I）、"
+          "疑似污染（C）和找不到同源（U）的比例。各来源每个基因用最长的蛋白。",
+          "Left: completeness, the share of the conserved HOGs (hierarchical orthologous groups) of the lineage that "
+          "are found, as single-copy (S), duplicated (D) or missing (M); right: consistency, the share of all "
+          "proteins that are consistent with the species' lineage (A, split into full-length, partial and fragment), "
+          "inconsistent (I), likely contaminants (C) or without homologs (U). The longest protein of every gene is used.")))
+
+
 def bar_figure(labels, values, xlabel, figdir, name, caption="", colors=None, legend=None, wrap=0, values_text=None):
     """Horizontal bars. colors: one colour per bar; legend: [(label, colour)]; wrap: wrap labels at n chars;
     values_text: format string for a value label at the bar end (e.g. "{:.1f}")."""
@@ -1251,7 +1307,7 @@ def build(a, out):
                     "按 S / D / F / M 堆叠，右侧为完整度 C。各来源使用同一组数据集，可以直接比较。",
                     "One row per annotation source x BUSCO dataset, using the longest protein of every gene; stacked "
                     "S / D / F / M with completeness C on the right. All sources use the same datasets and can be "
-                    "compared directly."))) + table(h, r) +
+                    "compared directly."))) + omark_figure(h, r, figdir) + table(h, r) +
               "<h3>" + L("基因结构对比", "Gene structure comparison") + "</h3><p class='muted'>" +
               L("EviAnn 一列只含编码基因；final 为过滤和重新命名后的最终基因集。",
                 "The EviAnn column contains coding genes only; final is the final gene set after filtering and "
