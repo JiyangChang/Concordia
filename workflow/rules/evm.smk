@@ -310,6 +310,8 @@ rule refine:
         reads=lambda w, input: (f"--lr-chains {input.lr}" if "lr" in input.keys() else
                                 f"--sr-junctions {input.sr}" if "sr" in input.keys() else ""),
         min_aa=RF.get("min_cds_aa", 50),
+        # BRAKER4 gene_support "RNA-Seq" columns are not RNA evidence without RNA-seq (EP mode: protein hints)
+        b4_support=O("03_Ab_initio/braker4.gene_support.tsv") if HAS_RNA else "",
         max_te=RF.get("max_te_overlap", 0.5),
         min_lr=RF.get("min_lr_support", 2),
         min_sr=RF.get("min_sr_junction_reads", 3),
@@ -325,7 +327,7 @@ rule refine:
     shell:
         SH(PY("refine.py") + """ --evm {input.evm} --eviann {input.eviann} --genome {input.genome} {params.reads} \
             --stringtie "{input.stringtie}" --proteins {input.miniprot} {input.gemoma} \
-            --braker4-gff {input.braker4} --braker4-support {input.support} --te-gff {input.te} \
+            --braker4-gff {input.braker4} --braker4-support '{params.b4_support}' --te-gff {input.te} \
             --min-cds-aa {params.min_aa} --max-te-overlap {params.max_te} --min-lr-support {params.min_lr} \
             --min-sr-junction {params.min_sr} --single-exon-overlap {params.se_ov} \
             --sr-min-junction-ratio {params.sr_ratio} --sr-stringtie-min-cov {params.sr_cov} \
@@ -397,6 +399,8 @@ rule final_filter:
     params:
         script=script("05_EVM", "08_final_filter"),
         min_aa=RF.get("min_cds_aa", 50),
+        # BRAKER4 gene_support "RNA-Seq" columns are not RNA evidence without RNA-seq (EP mode: protein hints)
+        b4_support=O("03_Ab_initio/braker4.gene_support.tsv") if HAS_RNA else "",
         keep_short="--keep-short-supported" if RF.get("keep_short_supported", True) else "",
         max_te=RF.get("max_te_overlap", 0.5),
         # without RNA-seq, protein evidence (miniprot / GeMoMa) replaces RNA evidence for the TE criterion
@@ -407,7 +411,7 @@ rule final_filter:
         SH(PY("filter_final.py") + """ --gff {input.gff} \\
             --te-gff {input.te} --max-te-overlap {params.max_te} \\
             --transcripts "{input.transcripts}" --refine-decisions {input.decisions} {params.prot} \\
-            --braker4-gff {input.braker4} --braker4-support {input.support} \\
+            --braker4-gff {input.braker4} --braker4-support '{params.b4_support}' \\
             --tesorter {input.tesorter} --min-cds-aa {params.min_aa} {params.keep_short} \\
             --out {output.gff} --removed {output.removed} --decisions {output.decisions}
         """)

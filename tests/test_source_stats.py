@@ -105,3 +105,12 @@ def test_source_support(tmp_path):
     assert s["none (no source overlaps)"]["overlap"] == "2" and s["A"]["exact_%"] == "50.0"
     c = {x["combination"]: x["transcripts"] for x in rows(comb)}
     assert c == {"A+B": "1", "A": "1", "no exact match": "2"}
+
+
+def test_braker4_support_ep_note(tmp_path):
+    (tmp_path / "e.tsv").write_text("gene_id\ttranscript_id\tintrons_sup_rnaseq\ng1\tg1.t1\t3\n")
+    out = tmp_path / "o.tsv"
+    run("braker4_support.py", "--support", tmp_path / "e.tsv", "--mode", "EP", "--out", out)
+    assert "not RNA evidence" in out.read_text()
+    run("braker4_support.py", "--support", tmp_path / "e.tsv", "--mode", "dual", "--out", out)
+    assert "not RNA evidence" not in out.read_text()

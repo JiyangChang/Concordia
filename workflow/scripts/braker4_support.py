@@ -26,6 +26,9 @@ def main():
             return
         header, body = read_gene_support(a.support)
         fh.write(f"# BRAKER4 mode {a.mode}; {len(body)} models\n")
+        if a.mode == "EP":                      # BRAKER4 still fills its *_rnaseq columns from the protein hints
+            fh.write("# EP mode (no RNA-seq): the *_rnaseq columns are not RNA evidence; the workflow does not use "
+                     "them\n")
         for i, col in enumerate(header):
             if col in ("gene_id", "transcript_id", "chrom", "strand"):
                 continue
