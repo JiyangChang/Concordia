@@ -1,6 +1,6 @@
 # Concordia：真核基因组结构与功能注释流程（Snakemake）
 
-[English](README.md) | 中文
+[English](README.md) | 中文 · 当前版本：**v0.1.0**（[更新记录](CHANGELOG.zh.md)）
 
 Concordia（拉丁语"一致"）把 RNA、从头预测和同源投射三类证据整合成共识注释。输入目标基因组、RNA-seq（短读和/或 PacBio / ONT 长读）以及若干同源物种的基因组和注释，依次完成以下步骤，最后生成一份图文统计报告：
 - 组装质量评估

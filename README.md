@@ -1,6 +1,6 @@
 # Concordia: eukaryotic genome structural and functional annotation workflow (Snakemake)
 
-English | [中文](README.zh.md)
+English | [中文](README.zh.md) · Current version: **v0.1.0** ([changelog](CHANGELOG.md))
 
 Concordia (Latin for "agreement") combines RNA, ab initio and homology evidence into a consensus annotation. Given a target genome, RNA-seq (short reads and/or PacBio / ONT long reads) and the genomes and annotations of
 several homologous species, the workflow runs the following steps and ends with an illustrated statistics report:
