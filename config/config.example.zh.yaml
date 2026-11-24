@@ -3,7 +3,10 @@ outdir: "results"                # 其下生成 00_Data ... 07_Report
 species_prefix: "ABCD"           # 最终基因 ID 前缀
 genome: "data/genome.fa"
 max_intron: 50000                # 植物 2e4-5e4；脊椎动物可设 5e5
-min_contig_len: 1000
+min_contig_len: 1000             # 短于该长度（bp）的序列在开始时去掉，之后不做任何注释（放不下完整基因；也让
+                                 #   EDTA / RepeatMasker / BRAKER4 少处理大量零碎片段）。去掉的条数见报告
+                                 #   （sequences_dropped_min_len）；0 = 全部保留。
+                                 #   与 braker4.min_contig 不同：后者只让更短的序列不参与 BRAKER4 的预测
 
 rename_seqids:
   # EDTA 要求序列名 <= 13 个字符，且只含字母/数字/下划线
@@ -99,7 +102,8 @@ braker4:
   #   （检查方法：apptainer exec <镜像> ls /shared），如 "/shared" 或 "/shared,/data"；"" = 不需要。
   #   每个路径都必须存在，否则 Apptainer 无法启动容器。
   bind: "/path/to/shared_storage"
-  min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与预测
+  min_contig: 10000              # BRAKER4 默认值；更短的 contig 不参与 BRAKER4 的预测（其他来源仍会注释它们；
+                                 #   min_contig_len 才是把序列从整个流程中去掉）
   use_minisplice: false          # 只在使用 IsoSeq 时生效
   skip_busco: true               # BUSCO/OMArk 统一由本流程评估（只关闭 BRAKER4 自己的评估；它预测时用的 compleasm 照常运行，
                                  #   数据集与 qc.busco_download_path 共用）

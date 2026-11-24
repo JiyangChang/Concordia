@@ -4,7 +4,10 @@ outdir: "results"                # 00_Data ... 07_Report are created under this 
 species_prefix: "ABCD"           # prefix of the final gene IDs
 genome: "data/genome.fa"
 max_intron: 50000                # plants 2e4-5e4; vertebrates may use 5e5
-min_contig_len: 1000
+min_contig_len: 1000             # sequences shorter than this (bp) are dropped at the start and get no annotation at all
+                                 #   (too short for complete genes; spares EDTA / RepeatMasker / BRAKER4 many tiny
+                                 #   fragments). Their number is in the report (sequences_dropped_min_len); 0 = keep all.
+                                 #   Not the same as braker4.min_contig: shorter sequences are only left out of BRAKER4
 
 rename_seqids:
   # EDTA requires sequence names of <= 13 characters containing only letters / digits / underscores.
@@ -113,7 +116,8 @@ braker4:
   #   by default (check: apptainer exec <image> ls /shared), e.g. "/shared" or "/shared,/data". "" = none needed.
   #   Every path must exist: Apptainer refuses to start the container otherwise.
   bind: "/path/to/shared_storage"
-  min_contig: 10000              # BRAKER4 default; shorter contigs are not predicted
+  min_contig: 10000              # BRAKER4 default; shorter contigs are not predicted by BRAKER4 (other sources
+                                 #   still annotate them; min_contig_len removes sequences from the whole workflow)
   use_minisplice: false          # only effective with IsoSeq data
   skip_busco: true               # BUSCO / OMArk are run by this workflow for all sources (only disables BRAKER4's own
                                  #   assessment; the compleasm it uses for prediction still runs, sharing qc.busco_download_path)
